@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+
+# Real test-account credentials. Copy config/test-accounts.example.json to
+# config/test-accounts.json and fill in your own — never commit the filled-in file.
+config/test-accounts.json
+
+# Runtime-generated artifacts (populated once later modules run)
+artifacts/**/*.json
+artifacts/**/*.png
+artifacts/**/*.xml
+artifacts/**/*.html
+logs/*.log
+
+# Note: generated test cases under artifacts/apps/*/test-cases/ stay ignored deliberately. They
+# embed the test account's password in their `type` steps, and they are reproducible anyway —
+# the committed generators in tools/generators/ are the source of truth for them.

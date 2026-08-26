@@ -1,0 +1,127 @@
+{
+  "com.betwayafrica.za": {
+    "mobileNumber": "<TEST_ACCOUNT_MOBILE_NUMBER>",
+    "password": "<TEST_ACCOUNT_PASSWORD>",
+    "logoutSteps": [
+      {
+        "stepNumber": 1,
+        "action": "wait",
+        "targetLocator": null,
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": 2500,
+        "expectedResult": "Any still-in-flight login request (the last test case's final step may have only just submitted it) has time to complete before the logged-in check below runs — otherwise this teardown can run before the session actually exists and wrongly treat it as nothing to log out of."
+      },
+      {
+        "stepNumber": 2,
+        "action": "verify_element_exists",
+        "targetLocator": {
+          "strategy": "resource-id",
+          "value": "com.betwayafrica.za:id/toolbarDeposit"
+        },
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The logged-in header (Deposit button) is present, meaning there is an active session to log out of."
+      },
+      {
+        "stepNumber": 3,
+        "action": "click",
+        "targetLocator": {
+          "strategy": "accessibility-id",
+          "value": "Open"
+        },
+        "elementId": "95858323-f853-4fcb-8fcd-7ceef6591f91",
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The hamburger menu drawer opens."
+      },
+      {
+        "stepNumber": 4,
+        "action": "wait",
+        "targetLocator": null,
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": 1000,
+        "expectedResult": "The drawer finishes opening."
+      },
+      {
+        "stepNumber": 5,
+        "action": "verify_element_exists",
+        "targetLocator": {
+          "strategy": "android-uiautomator",
+          "value": "new UiScrollable(new UiSelector().resourceId(\"com.betwayafrica.za:id/leftNavigationItems\")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().text(\"Log Out\"))"
+        },
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The drawer scrolls until Log Out is rendered. Replaces two blind swipes: the list is virtualized so an un-scrolled row is absent from the hierarchy entirely, and fling momentum varies per gesture — a fixed swipe count calibrated on one device landed short or long on another. Scoped to the drawer's own list because this screen has three scrollable containers.",
+        "optional": true
+      },
+      {
+        "stepNumber": 6,
+        "action": "wait",
+        "targetLocator": null,
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": 500,
+        "expectedResult": "The scroll settles before Log Out is tapped."
+      },
+      {
+        "stepNumber": 7,
+        "action": "verify_element_exists",
+        "targetLocator": {
+          "strategy": "xpath-text",
+          "value": "//android.widget.TextView[@resource-id=\"com.betwayafrica.za:id/navTitle\" and @text=\"Log Out\"]"
+        },
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The Log Out row is present in the drawer. Matched on the drawer row's own navTitle id rather than on text alone, so it cannot bind to a same-titled element elsewhere on screen."
+      },
+      {
+        "stepNumber": 8,
+        "action": "click",
+        "targetLocator": {
+          "strategy": "xpath-text",
+          "value": "//android.widget.TextView[@resource-id=\"com.betwayafrica.za:id/navTitle\" and @text=\"Log Out\"]"
+        },
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The user is logged out."
+      },
+      {
+        "stepNumber": 9,
+        "action": "wait",
+        "targetLocator": null,
+        "elementId": null,
+        "value": null,
+        "direction": null,
+        "durationMs": 1500,
+        "expectedResult": "The app finishes returning to a logged-out home screen."
+      },
+      {
+        "stepNumber": 10,
+        "action": "verify_element_exists",
+        "targetLocator": {
+          "strategy": "resource-id",
+          "value": "com.betwayafrica.za:id/toolbarLogin"
+        },
+        "elementId": "a4d4b54e-744a-41e7-b9cf-d381e2dc083a",
+        "value": null,
+        "direction": null,
+        "durationMs": null,
+        "expectedResult": "The logged-out header (Login button) is visible again."
+      }
+    ]
+  }
+}

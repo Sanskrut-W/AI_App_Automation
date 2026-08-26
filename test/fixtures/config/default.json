@@ -1,0 +1,4 @@
+{
+  "logging": { "level": "info" },
+  "app": { "name": "mobile-testing-platform" }
+}

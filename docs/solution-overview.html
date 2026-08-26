@@ -1,0 +1,577 @@
+<title>Mobile Testing Platform</title>
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --panel: #ece7dc;
+    --ink: #1c1b17;
+    --muted: #6c6656;
+    --line: rgba(28, 27, 23, 0.13);
+    --accent: #1a7a71;
+    --accent-soft: rgba(26, 122, 113, 0.12);
+    --success: #3f7d4e;
+    --success-soft: rgba(63, 125, 78, 0.12);
+    --danger: #a6402f;
+    --danger-soft: rgba(166, 64, 47, 0.12);
+    --warn: #a97423;
+    --warn-soft: rgba(169, 116, 35, 0.13);
+    --shadow: 0 1px 2px rgba(28, 27, 23, 0.07);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #12161a;
+      --panel: #1a2124;
+      --ink: #e7ece9;
+      --muted: #93a09b;
+      --line: rgba(231, 236, 233, 0.14);
+      --accent: #52b5aa;
+      --accent-soft: rgba(82, 181, 170, 0.15);
+      --success: #67b57c;
+      --success-soft: rgba(103, 181, 124, 0.14);
+      --danger: #d1806f;
+      --danger-soft: rgba(209, 128, 111, 0.15);
+      --warn: #d5a355;
+      --warn-soft: rgba(213, 163, 85, 0.14);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #12161a;
+    --panel: #1a2124;
+    --ink: #e7ece9;
+    --muted: #93a09b;
+    --line: rgba(231, 236, 233, 0.14);
+    --accent: #52b5aa;
+    --accent-soft: rgba(82, 181, 170, 0.15);
+    --success: #67b57c;
+    --success-soft: rgba(103, 181, 124, 0.14);
+    --danger: #d1806f;
+    --danger-soft: rgba(209, 128, 111, 0.15);
+    --warn: #d5a355;
+    --warn-soft: rgba(213, 163, 85, 0.14);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+  }
+
+  .page { max-width: 800px; margin: 0 auto; padding: 60px 28px 100px; }
+
+  header.doc-head {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-bottom: 30px; padding-bottom: 26px; border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    font-size: 2.5rem; line-height: 1.1; margin: 0; text-wrap: balance; font-weight: 500;
+  }
+  .tagline { font-size: 1.05rem; color: var(--muted); max-width: 56ch; margin: 4px 0 0; }
+  .doc-meta { display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .doc-meta strong { color: var(--ink); font-weight: 600; }
+
+  nav.toc {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; margin: 0 0 44px; box-shadow: var(--shadow);
+  }
+  nav.toc .toc-label {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 10px; display: block;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 28px; }
+  nav.toc li { margin-bottom: 6px; break-inside: avoid; }
+  nav.toc a {
+    color: var(--ink); text-decoration: none; font-size: 14px; display: flex; gap: 8px;
+  }
+  nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+  nav.toc a .n {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    color: var(--accent); font-size: 12.5px; flex: 0 0 auto;
+  }
+
+  h2 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    font-weight: 500; font-size: 1.55rem; margin: 56px 0 6px; text-wrap: balance;
+    display: flex; align-items: baseline; gap: 12px; scroll-margin-top: 20px;
+  }
+  h2 .num {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem; color: var(--accent); font-weight: 600;
+  }
+  .section-sub { color: var(--muted); font-size: 14.5px; margin: 0 0 22px; max-width: 62ch; }
+  h3 { font-size: 1.05rem; font-weight: 700; margin: 26px 0 10px; }
+
+  p { margin: 0 0 16px; max-width: 66ch; }
+  ul, ol.list { margin: 0 0 16px; padding-left: 22px; max-width: 64ch; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 700; }
+  a { color: var(--accent); }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 0.87em; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 0.1em 0.4em;
+  }
+
+  pre.codeblock {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 12.8px; line-height: 1.6; background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 6px; padding: 14px 16px;
+    overflow-x: auto; margin: 0 0 20px; box-shadow: var(--shadow);
+  }
+  pre.codeblock code { background: none; border: none; padding: 0; font-size: 1em; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 0 0 20px; font-size: 14.5px;
+  }
+  .callout .label {
+    display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin-bottom: 5px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.warn .label { color: var(--warn); }
+
+  .pipeline-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 22px 0 30px;
+  }
+  .pstage {
+    border: 1px solid var(--line); border-radius: 8px; padding: 14px 12px; text-align: center;
+    background: var(--panel);
+  }
+  .pstage .flag {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px; color: var(--accent); margin-bottom: 6px; word-break: break-word;
+  }
+  .pstage .name { font-weight: 700; font-size: 13.5px; margin-bottom: 3px; }
+  .pstage .freq { font-size: 11px; color: var(--muted); }
+
+  .component {
+    border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; margin: 0 0 16px;
+  }
+  .component h4 {
+    margin: 0 0 6px; font-size: 15px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  }
+  .component .path {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 12px; color: var(--muted); font-weight: 400;
+  }
+  .component p, .component ul { margin-bottom: 0; font-size: 14.5px; }
+  .component ul { margin-top: 8px; }
+
+  .tag {
+    display: inline-block; font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    font-weight: 700; border-radius: 999px; padding: 2px 9px; flex: 0 0 auto;
+  }
+  .tag.ai { background: var(--warn-soft); color: var(--warn); }
+  .tag.det { background: var(--success-soft); color: var(--success); }
+
+  figure { margin: 24px 0 8px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; text-align: center; }
+
+  .status-list { list-style: none; padding: 0; margin: 0 0 16px; }
+  .status-list li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .status-list li:last-child { border-bottom: none; }
+  .status-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--success); }
+  .status-dot.open { background: var(--danger); }
+  .status-dot.idea { background: var(--muted); }
+  .status-list .body { font-size: 14.5px; }
+  .status-list .body strong { display: block; margin-bottom: 2px; }
+
+  .cli-block { margin-bottom: 26px; }
+  .cli-block .cmd-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+  table.flags { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 0 0 20px; }
+  table.flags th, table.flags td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.flags th { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  table.flags td.flag { font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace; font-size: 12.5px; white-space: nowrap; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 20px 0 26px; }
+  .stat {
+    border: 1px solid var(--line); border-radius: 8px; padding: 14px; text-align: center;
+    background: var(--panel); box-shadow: var(--shadow);
+  }
+  .stat .v { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .stat .l { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+  footer.doc-foot { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+
+  @media (max-width: 620px) {
+    .page { padding: 40px 18px 80px; }
+    h1 { font-size: 1.9rem; }
+    nav.toc ol { columns: 1; }
+    .pipeline-strip { grid-template-columns: 1fr 1fr; }
+  }
+
+  .stroke-accent { stroke: var(--accent); }
+  .fill-accent { fill: var(--accent); }
+  .stroke-warn { stroke: var(--warn); }
+  .fill-warn { fill: var(--warn); }
+  .stroke-success { stroke: var(--success); }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">Solution Overview</span>
+    <h1>AI-Powered Autonomous Mobile Testing Platform</h1>
+    <p class="tagline">
+      Point it at an APK once. It walks the app, builds real executable test cases from what it
+      finds, and everything after that runs again — daily, weekly, on demand — without touching an
+      APK, a crawler, or the AI budget a second time.
+    </p>
+    <div class="doc-meta">
+      <span><strong>Stack:</strong> TypeScript / Node.js · Appium 2 + UiAutomator2 · Gemini</span>
+      <span><strong>Architecture:</strong> Clean Architecture (core → application → infrastructure)</span>
+      <span><strong>Verified against:</strong> Betway ZA (com.betwayafrica.za), real device/emulator</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <span class="toc-label">Contents</span>
+    <ol>
+      <li><a href="#pipeline"><span class="n">01</span> The pipeline</a></li>
+      <li><a href="#crawler"><span class="n">02</span> Autonomous crawling</a></li>
+      <li><a href="#generation"><span class="n">03</span> Test generation — four modules</a></li>
+      <li><a href="#healing"><span class="n">04</span> Locator healing</a></li>
+      <li><a href="#execution"><span class="n">05</span> Execution &amp; safety</a></li>
+      <li><a href="#reporting"><span class="n">06</span> Reporting</a></li>
+      <li><a href="#isolation"><span class="n">07</span> Per-app isolation</a></li>
+      <li><a href="#ai"><span class="n">08</span> Where AI is (and isn't)</a></li>
+      <li><a href="#cli"><span class="n">09</span> CLI reference</a></li>
+      <li><a href="#state"><span class="n">10</span> Current state</a></li>
+      <li><a href="#open"><span class="n">11</span> Open questions</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="pipeline"><span class="num">01</span> The pipeline</h2>
+  <p class="section-sub">Four stages, only the first two of which ever need to run more than once per app.</p>
+
+  <div class="pipeline-strip">
+    <div class="pstage"><div class="flag">--apk</div><div class="name">Crawl</div><div class="freq">once per app</div></div>
+    <div class="pstage"><div class="flag">(same run)</div><div class="name">Generate</div><div class="freq">once per app*</div></div>
+    <div class="pstage"><div class="flag">--execute-only</div><div class="name">Execute</div><div class="freq">every run</div></div>
+    <div class="pstage"><div class="flag">(same run)</div><div class="name">Report</div><div class="freq">every run</div></div>
+  </div>
+
+  <figure role="img" aria-label="Diagram: a full run installs the app, crawls every screen, and generates test cases in one pass; execute-only mode skips straight to running the already-generated suite and producing a report, with no APK, crawler, or AI call involved.">
+    <svg viewBox="0 0 760 260" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor" />
+        </marker>
+        <marker id="arrowAccent" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" class="fill-accent" />
+        </marker>
+      </defs>
+
+      <text x="10" y="26" font-size="11" letter-spacing="0.06em" fill="currentColor" opacity="0.6">FULL RUN — ONCE PER APP</text>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" opacity="0.85">
+        <rect x="10" y="40" width="130" height="54" rx="7" />
+        <rect x="185" y="40" width="130" height="54" rx="7" />
+        <rect x="360" y="40" width="130" height="54" rx="7" />
+      </g>
+      <text x="75" y="62" text-anchor="middle" font-size="12" fill="currentColor">Install</text>
+      <text x="75" y="78" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">APK → device</text>
+      <text x="250" y="62" text-anchor="middle" font-size="12" fill="currentColor">Crawl</text>
+      <text x="250" y="78" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">every screen, DFS</text>
+      <text x="425" y="62" text-anchor="middle" font-size="12" fill="currentColor">Generate</text>
+      <text x="425" y="78" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">4 modules → test cases</text>
+
+      <path d="M140,67 L185,67" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow)" opacity="0.7" />
+      <path d="M315,67 L360,67" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow)" opacity="0.7" />
+      <path d="M425,94 C 425,130 425,150 320,150" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.55" fill="none" />
+      <text x="430" y="128" font-size="9.5" fill="currentColor" opacity="0.6">stored per app</text>
+
+      <rect x="600" y="40" width="140" height="54" rx="7" class="stroke-accent" stroke-width="1.6" fill="none" />
+      <text x="670" y="62" text-anchor="middle" font-size="12" fill="currentColor">Report</text>
+      <text x="670" y="78" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">HTML + JSON</text>
+      <path d="M490,67 L600,67" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow)" opacity="0.7" />
+
+      <line x1="0" y1="140" x2="760" y2="140" stroke="currentColor" stroke-width="1" stroke-dasharray="3 5" opacity="0.3" />
+
+      <text x="10" y="166" font-size="11" letter-spacing="0.06em" class="fill-accent">EXECUTE-ONLY — EVERY OTHER RUN</text>
+      <rect x="320" y="180" width="150" height="54" rx="7" class="stroke-accent" stroke-width="1.6" fill="none" />
+      <text x="395" y="202" text-anchor="middle" font-size="12" fill="currentColor">Execute</text>
+      <text x="395" y="218" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">one module's stored suite</text>
+      <path class="stroke-accent" d="M320,207 L150,207" stroke-width="1.4" marker-end="url(#arrowAccent)" fill="none" />
+      <text x="235" y="200" text-anchor="middle" font-size="9.5" class="fill-accent">reads the stored suite</text>
+      <text x="150" y="212" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">(no APK · no crawl · no AI)</text>
+
+      <path class="stroke-accent" d="M470,207 L600,207 L600,94" stroke-width="1.4" marker-end="url(#arrowAccent)" fill="none" />
+      <text x="540" y="200" text-anchor="middle" font-size="9.5" class="fill-accent">same reporter</text>
+    </svg>
+    <figcaption>A full run crawls and generates once; every later run can skip straight to execute-only and reuse the same stored suite and reporter — no device install, crawl, or AI call required.</figcaption>
+  </figure>
+
+  <p>
+    <code>--crawl-only</code> stops a full run after generation, before it auto-executes anything — useful
+    for building up the stored suite (or importing a manual one) without spending a device session on a run
+    you're not ready to report on yet.
+  </p>
+
+  <h2 id="crawler"><span class="num">02</span> Autonomous crawling</h2>
+  <p class="section-sub"><span class="path">application/use-cases/crawler/ScreenCrawler.ts</span></p>
+  <p>
+    Depth-first traversal of the installed app: capture the current screen (screenshot + XML dump +
+    every element on it), tap each clickable candidate, capture what that reveals, and recurse — bounded by
+    <code>--max-depth</code> (default 20) and <code>--max-screens</code> (default 100) as a safety net
+    against infinite loops.
+  </p>
+  <ul>
+    <li>
+      <strong>Recognizes screens it's already seen.</strong> A structural hash of each screen (not pixels —
+      element structure) means a second crawl of the same app only does new work instead of rebuilding
+      everything from scratch.
+    </li>
+    <li>
+      <strong>Knows what not to tap.</strong> Purpose-built text matchers (<code>isCloseButtonElement</code>,
+      <code>isDangerousActionElement</code>, <code>isAuthElement</code>, <code>isLoginTriggerElement</code>,
+      <code>isSignUpTriggerElement</code>) steer it around logout/exit-confirmation buttons and toward the
+      screens worth exploring — login and sign-up entry points specifically, so those flows get discovered
+      without wandering the rest of the app randomly.
+    </li>
+    <li>
+      <strong>Recovers from its own overlay-dismissal.</strong> A safety net against a chained popup (close
+      one promo, another opens behind it) caps how many times it will keep dismissing before giving up on
+      that branch.
+    </li>
+  </ul>
+  <p>Output: every screen and element persisted to that app's repositories, plus a navigation graph (which element, on which screen, leads to which other screen) that later stages read.</p>
+
+  <h2 id="generation"><span class="num">03</span> Test generation — four modules</h2>
+  <p class="section-sub">Each module owns its own folder and runs in its own isolated Appium session — a real login in one module never contaminates what another module assumes is on screen.</p>
+
+  <div class="component">
+    <h4>hamburger-menu <span class="tag det">deterministic</span></h4>
+    <p>Walks the navigation graph the crawler built and turns "element X on screen Y opens screen Z" into verify-then-click test steps — no AI, no invented data, just what was actually observed.</p>
+  </div>
+  <div class="component">
+    <h4>login <span class="tag det">deterministic</span></h4>
+    <p>Generated only when both <code>--login-mobile</code> and <code>--login-password</code> are given together. Builds verify → click → type → verify → click steps against the real login form the crawler found.</p>
+  </div>
+  <div class="component">
+    <h4>sign-up <span class="tag det">deterministic</span></h4>
+    <p>Covers the full registration/KYC form (ID type, date of birth, source of funds, language, terms) with freshly-generated random details per field — sign-up is the one flow where <em>any</em> plausible data is correct, so nothing needs to be real or cached.</p>
+  </div>
+  <div class="component">
+    <h4>manual <span class="tag ai">AI-assisted</span></h4>
+    <p><span class="path">ExcelManualTestCaseReader → StepInterpreter (Gemini) → ManualTestCaseGenerator</span></p>
+    <p>
+      For the business logic no crawler can infer on its own. Takes a plainly-written Excel sheet
+      (<code>"Enter mobile number (on which account exists)" → "user must be able to enter mobile number"</code>)
+      and resolves each free-text step against the elements the crawl already captured. A step that doesn't
+      apply to the native app at all (a leftover "enter the URL…" row from a web test suite) is detected and
+      skipped rather than force-matched to the wrong thing. Imported via
+      <code>--import-test-cases</code> — fully offline, no device, reusing only already-crawled data.
+    </p>
+  </div>
+
+  <div class="callout warn">
+    <span class="label">The one generator with no deterministic fallback</span>
+    <p>
+      Free-text step interpretation is impossible without a language model — there's no graph edge to
+      follow. Every other Gemini-backed piece in this platform degrades gracefully without an API key;
+      this is the one exception, and it fails clearly (not silently) if Gemini isn't configured.
+    </p>
+  </div>
+
+  <h2 id="healing"><span class="num">04</span> Locator healing</h2>
+  <p class="section-sub"><span class="path">application/use-cases/locator-healing/LocatorHealingEngine.ts</span></p>
+  <p>Apps change. A resource-id renames, a layout shifts, a button moves. When a stored locator stops resolving, three tiers are tried in order — each one only reached if the one before it can't help — before AI is ever asked anything.</p>
+
+  <figure role="img" aria-label="Diagram of the three-tier locator healing fallback: coordinate self-heal is tried first and is free, deterministic fingerprint matching against the current screen is tried second and is also free, and the Gemini-backed AI fallback is tried last, only when the first two produce no confident match.">
+    <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor" />
+        </marker>
+      </defs>
+      <g stroke="currentColor" stroke-width="1.3" fill="none" opacity="0.85" class="stroke-success">
+        <rect x="10" y="60" width="200" height="70" rx="7" />
+      </g>
+      <text x="110" y="86" text-anchor="middle" font-size="12" fill="currentColor">1 · Coordinate self-heal</text>
+      <text x="110" y="102" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">same element's cached tap point</text>
+      <text x="110" y="118" text-anchor="middle" font-size="9.5" class="fill-success">standard widgets only · free</text>
+
+      <path d="M210,95 L270,95" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity="0.55" />
+      <text x="240" y="87" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.55">not a standard widget</text>
+
+      <g stroke="currentColor" stroke-width="1.3" fill="none" opacity="0.85" class="stroke-success">
+        <rect x="270" y="60" width="220" height="70" rx="7" />
+      </g>
+      <text x="380" y="86" text-anchor="middle" font-size="12" fill="currentColor">2 · Fingerprint match</text>
+      <text x="380" y="102" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">re-parse screen, weighted similarity</text>
+      <text x="380" y="118" text-anchor="middle" font-size="9.5" class="fill-success">deterministic · free</text>
+
+      <path d="M490,95 L556,95" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow2)" opacity="0.55" />
+      <text x="523" y="87" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.55">best score &lt; 0.6</text>
+
+      <g stroke-width="1.5" fill="none" class="stroke-warn">
+        <rect x="556" y="52" width="194" height="86" rx="7" />
+      </g>
+      <text x="653" y="80" text-anchor="middle" font-size="12" fill="currentColor">3 · Gemini fallback</text>
+      <text x="653" y="96" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">picks a candidate index</text>
+      <text x="653" y="112" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">from the current screen</text>
+      <text x="653" y="128" text-anchor="middle" font-size="9.5" class="fill-warn">last resort · costs a call</text>
+
+      <text x="380" y="172" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.7">Gated ahead of all three: refuse outright if the current screen looks like a real-money flow.</text>
+    </svg>
+    <figcaption>Deterministic tiers are tried first and cost nothing; Gemini is consulted only when both of them fail to find a confident match.</figcaption>
+  </figure>
+
+  <p>Any successful heal updates the stored locator, so the next run starts from the fixed version — healing compounds instead of repeating.</p>
+
+  <h2 id="execution"><span class="num">05</span> Execution &amp; safety</h2>
+  <p class="section-sub"><span class="path">test-execution/TestExecutionEngine.ts · TestStepExecutor.ts</span></p>
+  <p>Each stored test case runs step by step against a real Appium session. A failed step doesn't abort the run — it tries to recover, in order: dismiss a recognized overlay and retry, or heal the locator and retry — and only reports FAILED once both have been tried.</p>
+
+  <div class="callout">
+    <span class="label">Hardened after a live incident</span>
+    <p>
+      Both recovery paths used to act first and verify never — a dismiss-tap or a cached-coordinate heal
+      could land on the wrong screen with nothing checking where it ended up. Both now refuse outright,
+      before acting, if the current screen matches a real-money pattern (deposit / withdraw / voucher /
+      redeem / payment). Proven live: it has refused and backed out safely every time this has come up
+      since, across every run.
+    </p>
+  </div>
+
+  <ul>
+    <li><strong>Deterministic ordering.</strong> A test case can carry an explicit <code>sequence</code>number so a suite's run order is a decision, not whatever the filesystem happened to return.</li>
+    <li><strong>A screenshot for every step</strong>, pass or fail — not just failures — so the report shows a full visual trail per test case.</li>
+    <li><strong>A raw two-point swipe</strong> alongside the generic scroll action, for scrollable content (nested drawer lists) the generic gesture can't reliably reach.</li>
+    <li><strong>Automatic session teardown.</strong> A configured account can carry a <code>logoutSteps</code> recipe that runs after <em>every</em> test case — gated by its own "still logged in?" check, so it's a safe no-op on any test case that never logged in. No test case inherits a session left behind by whichever one ran before it.</li>
+  </ul>
+
+  <h2 id="reporting"><span class="num">06</span> Reporting</h2>
+  <p class="section-sub"><span class="path">infrastructure/reporting/ReportGenerator.ts · HtmlReportRenderer.ts</span></p>
+  <p>
+    Every run produces both a JSON report (machine-readable, for anything that wants to consume results
+    programmatically) and a self-contained HTML report: per-test-case pass/fail, per-step screenshots and
+    timings, and the app's navigation graph rendered as a chip-and-edge diagram — one file, no server
+    required to view it.
+  </p>
+
+  <h2 id="isolation"><span class="num">07</span> Per-app isolation</h2>
+  <p class="section-sub"><span class="path">shared/paths/AppPaths.ts</span></p>
+  <p>
+    Every app's screens, elements, test cases, navigation graph, screenshots, and reports live under
+    <code>artifacts/apps/&lt;packageName&gt;/</code> — physically separate folders, not a shared table
+    filtered by package name. This exists because of a real bug: executing a freshly-crawled app once ran a
+    leftover test case from an unrelated app, because everything shared one flat repository. Isolation makes
+    that structurally impossible rather than patched around.
+  </p>
+  <p>
+    It's also what makes <code>--execute-only</code> meaningful: a package name is enough to find and run
+    that app's entire stored suite, with nothing else needed. "Generate once, execute daily" is a direct
+    consequence of this layout, not a separate feature bolted on top of it.
+  </p>
+
+  <h2 id="ai"><span class="num">08</span> Where AI is (and isn't) used</h2>
+  <p class="section-sub">The deterministic-first shape of this platform is a cost decision as much as a reliability one — Gemini is asked for exactly three things, all narrow, all as a fallback.</p>
+
+  <table class="flags">
+    <thead><tr><th>Call site</th><th>Asked to do</th><th>Reached how often</th></tr></thead>
+    <tbody>
+      <tr><td>Locator healing (tier 3)</td><td>Pick a candidate index for a broken locator</td><td>Only when deterministic fingerprint matching's best score is below 0.6</td></tr>
+      <tr><td>Manual step interpretation</td><td>Map one free-text Excel row to an action + candidate element</td><td>Once per row, during import — the only unavoidable one</td></tr>
+      <tr><td>Screen analysis (<code>AiScreenAnalyzer</code>)</td><td>Structured read of a screen's screenshot + XML</td><td>Built and available; not called by the current pipeline</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Three of the four generation modules (<code>hamburger-menu</code>, <code>login</code>, <code>sign-up</code>) invent nothing and ask
+    Gemini nothing — they're built entirely from the crawler's own structural data. Even where Gemini is
+    used, it's kept to classification/matching, never to inventing real values: <code>manual</code>'s
+    mobile-number and password fields are resolved in code from <code>config/test-accounts.json</code>, and
+    <code>sign-up</code>'s random details come from a plain random generator, not a model.
+  </p>
+
+  <h2 id="cli"><span class="num">09</span> CLI reference</h2>
+
+  <div class="cli-block">
+    <div class="cmd-label">Full run — crawl, generate, execute the hamburger-menu module, report</div>
+    <pre class="codeblock"><code>npm start -- --apk &lt;path&gt; (--device &lt;serial&gt; | --avd &lt;name&gt;) [options]</code></pre>
+    <table class="flags">
+      <tbody>
+        <tr><td class="flag">--max-screens &lt;n&gt;</td><td>Cap distinct screens explored (default 100)</td></tr>
+        <tr><td class="flag">--max-depth &lt;n&gt;</td><td>Cap DFS recursion depth (default 20)</td></tr>
+        <tr><td class="flag">--login-mobile / --login-password</td><td>Both required together to also generate the login module</td></tr>
+        <tr><td class="flag">--crawl-only</td><td>Stop after generation — skip auto-executing hamburger-menu</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cli-block">
+    <div class="cmd-label">Execute-only — re-run one module's stored suite, nothing else</div>
+    <pre class="codeblock"><code>npm start -- --execute-only --package &lt;name&gt; --module &lt;name&gt; (--device | --avd)</code></pre>
+    <p>No APK, no crawl, no AI call — <code>module</code> is one of <code>hamburger-menu</code>, <code>login</code>, <code>sign-up</code>, <code>manual</code>.</p>
+  </div>
+
+  <div class="cli-block">
+    <div class="cmd-label">Import — turn a manual Excel sheet into a real, executable suite</div>
+    <pre class="codeblock"><code>npm start -- --import-test-cases --package &lt;name&gt; --excel-file &lt;path&gt;</code></pre>
+    <p>Offline — reuses elements/screenshots a prior crawl already captured. Run the result later with <code>--execute-only --module manual</code>.</p>
+  </div>
+
+  <div class="cli-block">
+    <div class="cmd-label">List apps with a stored suite</div>
+    <pre class="codeblock"><code>npm start -- --list-apps</code></pre>
+  </div>
+
+  <h2 id="state"><span class="num">10</span> Current state</h2>
+  <div class="stat-row">
+    <div class="stat"><div class="v">75</div><div class="l">test suites</div></div>
+    <div class="stat"><div class="v">644</div><div class="l">unit tests</div></div>
+    <div class="stat"><div class="v">4</div><div class="l">test-case modules</div></div>
+    <div class="stat"><div class="v">3-tier</div><div class="l">locator healing</div></div>
+  </div>
+  <p>
+    Build, lint, format, and the full unit suite are green. All four modules have been live-verified
+    against the real target app on a real emulator, including the safety gates and automatic logout
+    teardown described above firing correctly under real, unscripted conditions — not just in a mock.
+  </p>
+
+  <h2 id="open"><span class="num">11</span> Open questions</h2>
+  <ul class="status-list">
+    <li>
+      <span class="status-dot open"></span>
+      <span class="body"><strong>Run-to-run variance in the app's own promotional content</strong>
+      Which test case encounters a promo screen shifts between runs. The safety gate makes every occurrence
+      safe; it doesn't (and isn't meant to) stop the app from showing one.</span>
+    </li>
+    <li>
+      <span class="status-dot open"></span>
+      <span class="body"><strong>A test case can leave UI state open for the next one</strong>
+      Logout teardown solves session leakage between test cases; a left-open drawer or dialog is a
+      different kind of leak, not yet addressed the same way.</span>
+    </li>
+    <li>
+      <span class="status-dot idea"></span>
+      <span class="body"><strong>User-authored test flow/logic, beyond Excel free text</strong>
+      Raised early on and deferred: whether there's room for defining custom test logic directly, rather
+      than everything being crawl-derived or Excel-interpreted. Still open, never designed.</span>
+    </li>
+  </ul>
+
+  <footer class="doc-foot">
+    AI-Powered Autonomous Mobile Testing Platform — solution overview. Verified against Betway ZA
+    (com.betwayafrica.za) on a real Android emulator.
+  </footer>
+
+</div>

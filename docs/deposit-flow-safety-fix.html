@@ -1,0 +1,604 @@
+<title>Deposit-Flow Safety Fix</title>
+<style>
+  :root {
+    --paper: #f7f5f0;
+    --panel: #efebe2;
+    --ink: #1b1a17;
+    --muted: #6b6558;
+    --line: rgba(27, 26, 23, 0.14);
+    --accent: #c17324;
+    --accent-soft: rgba(193, 115, 36, 0.13);
+    --success: #3f7d4e;
+    --success-soft: rgba(63, 125, 78, 0.12);
+    --danger: #a6402f;
+    --danger-soft: rgba(166, 64, 47, 0.12);
+    --shadow: 0 1px 2px rgba(27, 26, 23, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310;
+      --panel: #201b15;
+      --ink: #ece5d8;
+      --muted: #a89c88;
+      --line: rgba(236, 229, 216, 0.14);
+      --accent: #e0913f;
+      --accent-soft: rgba(224, 145, 63, 0.16);
+      --success: #63b378;
+      --success-soft: rgba(99, 179, 120, 0.14);
+      --danger: #d17868;
+      --danger-soft: rgba(209, 120, 104, 0.15);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #161310;
+    --panel: #201b15;
+    --ink: #ece5d8;
+    --muted: #a89c88;
+    --line: rgba(236, 229, 216, 0.14);
+    --accent: #e0913f;
+    --accent-soft: rgba(224, 145, 63, 0.16);
+    --success: #63b378;
+    --success-soft: rgba(99, 179, 120, 0.14);
+    --danger: #d17868;
+    --danger-soft: rgba(209, 120, 104, 0.15);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 64px 28px 96px;
+  }
+
+  header.doc-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 40px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    font-size: 2.3rem;
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+    font-weight: 500;
+  }
+
+  .doc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    color: var(--muted);
+    font-size: 13.5px;
+    margin-top: 6px;
+  }
+  .doc-meta strong { color: var(--ink); font-weight: 600; }
+
+  h2 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    margin: 52px 0 6px;
+    text-wrap: balance;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  h2 .num {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h2 + .section-sub {
+    color: var(--muted);
+    font-size: 14.5px;
+    margin: 0 0 22px;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 28px 0 10px;
+  }
+
+  p { margin: 0 0 16px; max-width: 66ch; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; max-width: 64ch; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 700; }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+  }
+
+  pre.codeblock {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 0 0 20px;
+    box-shadow: var(--shadow);
+  }
+  pre.codeblock code { background: none; border: none; padding: 0; font-size: 1em; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 0 0 20px;
+    font-size: 14.5px;
+  }
+  .callout .label {
+    display: block;
+    font-size: 11.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-soft); }
+  .callout.danger .label { color: var(--danger); }
+
+  /* Ledger / summary table */
+  .ledger {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin: 22px 0 8px;
+  }
+  table.runs {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.runs th, table.runs td {
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  table.runs th {
+    background: var(--panel);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  table.runs tr:last-child td { border-bottom: none; }
+  table.runs td.num, table.runs th.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .pass-count { color: var(--success); font-weight: 700; }
+  .fail-count { color: var(--danger); font-weight: 700; }
+  .run-note { color: var(--muted); font-size: 13px; }
+
+  /* Evidence / fact grid */
+  .fact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin: 20px 0 24px;
+  }
+  .fact {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 13px 15px;
+    background: var(--panel);
+  }
+  .fact .k {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .fact .v {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    word-break: break-word;
+  }
+
+  /* Component list */
+  .component {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 0 0 16px;
+  }
+  .component h4 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+  }
+  .component .path {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+  .tag.new { background: var(--success-soft); color: var(--success); }
+  .tag.mod { background: var(--accent-soft); color: var(--accent); }
+  .component p { margin-bottom: 0; font-size: 14.5px; }
+
+  figure { margin: 24px 0 30px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  .status-list { list-style: none; padding: 0; margin: 0 0 16px; }
+  .status-list li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .status-list li:last-child { border-bottom: none; }
+  .status-dot {
+    flex: 0 0 auto;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-top: 6px;
+    background: var(--success);
+  }
+  .status-dot.open { background: var(--danger); }
+  .status-list .body { font-size: 14.5px; }
+  .status-list .body strong { display: block; margin-bottom: 2px; }
+
+  footer.doc-foot {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 40px 18px 72px; }
+    h1 { font-size: 1.85rem; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">Incident &amp; Fix — com.betwayafrica.za</span>
+    <h1>Deposit-Flow Safety Fix</h1>
+    <div class="doc-meta">
+      <span><strong>Platform:</strong> AI-powered mobile testing pipeline</span>
+      <span><strong>Trigger:</strong> automation typed into a real-money screen with no authorizing test case</span>
+      <span><strong>Status:</strong> fixed &amp; verified live; two follow-on issues open</span>
+    </div>
+  </header>
+
+  <p>
+    During a routine run, the automation navigated off-script into Betway ZA's <strong>Deposit Funds</strong>
+    screen and typed a cached password into its <strong>Voucher Pin</strong> field — with no test case that
+    authorized touching a real-money flow. This document covers what caused it, the guardrail that now blocks
+    it categorically, and the follow-on hardening that came out of chasing it down.
+  </p>
+
+  <h2><span class="num">01</span> What happened</h2>
+  <p>
+    A step failed to find its target element. Two independent fallback paths in the execution engine each
+    tried to recover on their own — and each was willing to act on whatever it found, without checking where
+    it had landed first.
+  </p>
+
+  <div class="fact-grid">
+    <div class="fact"><div class="k">Screen reached</div><div class="v">Deposit Funds → Betway Bucks Voucher</div></div>
+    <div class="fact"><div class="k">Field typed into</div><div class="v">Voucher Pin</div></div>
+    <div class="fact"><div class="k">Value typed</div><div class="v">1234 5678 90</div></div>
+    <div class="fact"><div class="k">Source of that value</div><div class="v">cached test-account password (config/test-accounts.json)</div></div>
+  </div>
+
+  <p>
+    The typed value was an exact match for the test account's password — proof this wasn't a coincidence.
+    A locator-healing fallback, primed to re-enter the login password, fired on the wrong screen and typed it
+    somewhere it was never meant to go. The <code>Redeem</code> button was disabled and nothing was ever
+    submitted, but the intent of the code path was clearly "type the password," aimed at the wrong field.
+  </p>
+
+  <h3>Two independent gaps, same category of mistake</h3>
+  <p>Both live in <code>TestStepExecutor</code> and <code>LocatorHealingEngine</code> — the two places a failed step tries to recover before it's reported as failed.</p>
+  <ul>
+    <li>
+      <strong>Overlay dismissal acted first, verified never.</strong> <code>tryDismissOverlay()</code> scans
+      the whole current screen for anything that looks like a close/skip/dismiss button, taps the first match,
+      then just retries the <em>original</em> step's same locator. Because header elements like
+      <code>toolbarLogin</code> persist on almost every screen, that retry can pass even while the dismiss-tap
+      quietly navigated somewhere unintended — the check has no way to notice.
+    </li>
+    <li>
+      <strong>Coordinate self-heal trusted a stale cache.</strong> <code>selfHealViaCoordinates()</code>
+      returned an element's own cached pixel coordinates straight from the repository, with zero comparison
+      against the screen actually on-device right now.
+    </li>
+  </ul>
+
+  <h2><span class="num">02</span> The fix: a hard refusal gate</h2>
+  <p>
+    Rather than patch each fallback's logic individually, both now share one categorical rule, checked
+    <strong>before</strong> any tap or keystroke — not after:
+  </p>
+
+  <pre class="codeblock"><code>// src/shared/text/isSensitiveFinancialElement.ts
+const SENSITIVE_FINANCIAL_PATTERN =
+  /deposit|withdraw|voucher|redeem|top[\s-]?up|card\s*number|cvv|payment/i;
+
+// matched against text, contentDescription, resourceId, and accessibilityId
+// of every element on the current screen</code></pre>
+
+  <p>If anything on the current screen matches, every recovery strategy refuses outright — self-heal,
+  fingerprint match, and the AI fallback alike — and the step fails safely instead of guessing.</p>
+
+  <figure role="img" aria-label="Diagram showing that a step failure branches into two recovery strategies, overlay-dismissal and locator-healing, and both now pass through a shared real-money screen check before acting, refusing and failing the step safely if the check matches, or proceeding as before if it doesn't.">
+    <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor" />
+        </marker>
+        <marker id="arrowDanger" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" class="fill-danger" />
+        </marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.85">
+        <rect x="14" y="140" width="122" height="50" rx="7" />
+      </g>
+      <text x="75" y="160" text-anchor="middle" font-size="11.5" fill="currentColor">Step fails to</text>
+      <text x="75" y="175" text-anchor="middle" font-size="11.5" fill="currentColor">find its target</text>
+
+      <g fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75">
+        <rect x="196" y="36" width="196" height="56" rx="7" />
+        <rect x="196" y="244" width="196" height="56" rx="7" />
+      </g>
+      <text x="294" y="59" text-anchor="middle" font-size="11.5" fill="currentColor">Dismiss overlay:</text>
+      <text x="294" y="74" text-anchor="middle" font-size="11.5" fill="currentColor">tap the close-like element</text>
+      <text x="294" y="267" text-anchor="middle" font-size="11.5" fill="currentColor">Heal locator: reuse cached</text>
+      <text x="294" y="282" text-anchor="middle" font-size="11.5" fill="currentColor">coords / re-match fingerprint</text>
+
+      <path d="M137,152 L196,68" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.6" />
+      <path d="M137,178 L196,262" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.6" />
+
+      <path d="M392,64 L420,64" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.6" />
+      <path d="M392,270 L420,270" stroke="currentColor" stroke-width="1.2" marker-end="url(#arrow)" opacity="0.6" />
+      <text x="406" y="55" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">re-capture</text>
+      <text x="406" y="261" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">re-capture</text>
+
+      <g class="stroke-accent" stroke-width="1.6" fill="none">
+        <polygon points="460,28 528,64 460,100 392,64" />
+        <polygon points="460,236 528,272 460,308 392,272" />
+      </g>
+      <text x="460" y="59" text-anchor="middle" font-size="10.5" fill="currentColor">real-money</text>
+      <text x="460" y="72" text-anchor="middle" font-size="10.5" fill="currentColor">screen now?</text>
+      <text x="460" y="267" text-anchor="middle" font-size="10.5" fill="currentColor">real-money</text>
+      <text x="460" y="280" text-anchor="middle" font-size="10.5" fill="currentColor">screen now?</text>
+
+      <g class="stroke-danger" stroke-width="1.4" fill="none">
+        <rect x="592" y="118" width="150" height="56" rx="7" />
+      </g>
+      <text x="667" y="141" text-anchor="middle" font-size="11" class="fill-danger">Refuse &amp; back out —</text>
+      <text x="667" y="156" text-anchor="middle" font-size="11" class="fill-danger">step fails safely</text>
+
+      <g stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.75">
+        <rect x="592" y="200" width="150" height="48" rx="7" />
+      </g>
+      <text x="667" y="220" text-anchor="middle" font-size="11" fill="currentColor">Proceed — retry /</text>
+      <text x="667" y="234" text-anchor="middle" font-size="11" fill="currentColor">apply healed locator</text>
+
+      <path class="stroke-danger" d="M520,42 L592,138" stroke-width="1.3" marker-end="url(#arrowDanger)" fill="none" />
+      <path class="stroke-danger" d="M520,250 L592,158" stroke-width="1.3" marker-end="url(#arrowDanger)" fill="none" />
+      <path d="M500,86 L592,218" stroke="currentColor" stroke-width="1.1" marker-end="url(#arrow)" opacity="0.55" fill="none" />
+      <path d="M500,292 L592,232" stroke="currentColor" stroke-width="1.1" marker-end="url(#arrow)" opacity="0.55" fill="none" />
+
+      <text x="536" y="80" font-size="10" class="fill-danger" text-anchor="middle">yes</text>
+      <text x="536" y="270" font-size="10" class="fill-danger" text-anchor="middle">yes</text>
+      <text x="540" y="140" font-size="10" fill="currentColor" opacity="0.6" text-anchor="middle">no</text>
+      <text x="540" y="270" font-size="10" fill="currentColor" opacity="0.6" text-anchor="middle" dy="16">no</text>
+    </svg>
+    <figcaption>Both recovery paths check for a real-money screen before acting — the check happens ahead of any tap or keystroke, at both call sites, not after.</figcaption>
+  </figure>
+
+  <style>
+    .stroke-accent { stroke: var(--accent); }
+    .stroke-danger { stroke: var(--danger); }
+    .fill-danger { fill: var(--danger); }
+  </style>
+
+  <h3>Where it's wired in</h3>
+
+  <div class="component">
+    <h4>LocatorHealingEngine.heal() <span class="path">src/application/use-cases/locator-healing/LocatorHealingEngine.ts</span></h4>
+    <p>Now parses the current screen's XML <strong>before</strong> trying any strategy — including the cheap
+    coordinate self-heal that caused the incident. A match refuses coordinate self-heal, fingerprint matching,
+    and the AI fallback in one place.</p>
+  </div>
+  <div class="component">
+    <h4>TestStepExecutor.tryDismissOverlay() <span class="path">src/application/use-cases/test-execution/TestStepExecutor.ts</span></h4>
+    <p>After the dismiss-tap, re-captures the screen and checks it <strong>before</strong> ever retrying the
+    original step. On a match, it backs out — tapping the screen's own close control if one exists, otherwise
+    the hardware back button — and fails the step instead of retrying against the wrong screen.</p>
+  </div>
+
+  <div class="callout danger">
+    <span class="label">Live-proven, not just unit-tested</span>
+    <p>Both gates have since fired for real against the live app — refusing to heal, and backing out of a
+    dismiss-tap that landed on Deposit Funds — every time, across every verification run since. See §5.</p>
+  </div>
+
+  <h2><span class="num">03</span> Follow-on hardening</h2>
+  <p>Chasing the incident down surfaced four smaller, related problems. Each is now fixed.</p>
+
+  <div class="component">
+    <h4>Deterministic test-case ordering <span class="tag mod">changed</span></h4>
+    <p><span class="path">core/entities/TestCase.ts · infrastructure/persistence/file-system/FileTestCaseRepository.ts</span></p>
+    <p>Execution order used to be whatever the OS's directory listing happened to return — undefined behavior
+    that nothing guaranteed. A test case now carries an optional <code>sequence</code> number; the repository
+    sorts by it (falling back to the old order for anything unsequenced), so a suite's run order is an explicit
+    decision instead of an accident of the filesystem.</p>
+  </div>
+
+  <div class="component">
+    <h4>Screenshot on every step, not just failures <span class="tag mod">changed</span></h4>
+    <p><span class="path">test-execution/TestStepExecutor.ts</span></p>
+    <p>The HTML report already had a slot for a per-step screenshot — it just only ever got filled in on
+    failure. Every step now captures one, pass or fail, giving each test case in the report a Playwright-style
+    visual trail instead of only visual evidence of what went wrong.</p>
+  </div>
+
+  <div class="component">
+    <h4>A raw two-point swipe, alongside the generic scroll <span class="tag new">new</span></h4>
+    <p><span class="path">ActionType.SWIPE · AndroidAppiumDriver.swipe() · IInteractionDriver.swipe()</span></p>
+    <p>Found live: Appium's generic <code>mobile: scrollGesture</code> silently did nothing inside a nested
+    navigation-drawer list — confirmed by diffing the screen's XML before and after, byte-for-byte identical.
+    <code>mobile: dragGesture</code> between two explicit coordinates moved the same list correctly. Added as a
+    new step type rather than changing scroll's existing behavior everywhere it's already relied on.</p>
+  </div>
+
+  <div class="component">
+    <h4>Logout runs automatically after every test case <span class="tag new">new</span></h4>
+    <p><span class="path">TestAccount.logoutSteps · TestExecutionEngine · config/test-accounts.json</span></p>
+    <p>Restarting the app doesn't log a session out — the token lives on disk, not in memory, so a fresh
+    process just reads it back. A test account can now carry a <code>logoutSteps</code> recipe; the execution
+    engine runs it after <strong>every</strong> test case, not just ones that are expected to log in. Its own
+    first step is a "still logged in?" check, so it's a safe no-op on any test case that never logged in — that
+    guard is what makes running it unconditionally, after every single test case, safe. It never counts toward
+    a test case's own pass/fail result.</p>
+  </div>
+
+  <h2><span class="num">04</span> Verification</h2>
+  <p><strong>Automated:</strong> 75 suites / 644 tests green across build, lint, format, and the full unit
+  suite. <strong>Live:</strong> four full runs of the manual test module against the real emulator, tracked
+  honestly below rather than reporting only the best one.</p>
+
+  <div class="ledger">
+    <table class="runs">
+      <thead>
+        <tr><th>Run</th><th>What changed since the last one</th><th class="num">Passed</th><th class="num">Failed</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Sensitive-screen refusal gate added</td>
+          <td class="num"><span class="pass-count">3</span>/6</td>
+          <td class="num"><span class="fail-count">3</span></td>
+          <td class="run-note">Proved both gates fire live — every drift toward Deposit was refused, none silently succeeded</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>+ ordering, per-step screenshots, swipe fix</td>
+          <td class="num"><span class="pass-count">4</span>/7</td>
+          <td class="num"><span class="fail-count">3</span></td>
+          <td class="run-note">Logout test case reachable and passing on its own for the first time</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>+ automatic logout teardown</td>
+          <td class="num"><span class="pass-count">5</span>/6</td>
+          <td class="num"><span class="fail-count">1</span></td>
+          <td class="run-note">Best result — login-retry cases stopped inheriting a session from the one before them</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Re-run, no code changes</td>
+          <td class="num"><span class="pass-count">3</span>/6</td>
+          <td class="num"><span class="fail-count">3</span></td>
+          <td class="run-note">Same gates fired correctly at different points — the app's own promo content, not a regression</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    The pass count moves between runs; the refusal behavior does not. Across all four runs, every single
+    time the automation drifted toward a real-money screen, the gate caught it — never once did a run
+    silently proceed the way the original incident did.
+  </p>
+
+  <h2><span class="num">05</span> Open issues</h2>
+  <p>Two problems remain, both already understood, neither touched by this fix on purpose:</p>
+
+  <ul class="status-list">
+    <li>
+      <span class="status-dot open"></span>
+      <span class="body">
+        <strong>Run-to-run variance in when the drift happens</strong>
+        Which test case hits a promotional screen shifts between runs — most likely the app's own
+        rotating promo content, not the harness. The safety gate's job is to make every occurrence
+        safe, not to prevent the app from showing a promo in the first place; it has done that in
+        every run so far.
+      </span>
+    </li>
+    <li>
+      <span class="status-dot open"></span>
+      <span class="body">
+        <strong>A left-open drawer leaks into the next test case</strong>
+        The hamburger-menu test case ends with the nav drawer intentionally left open (that's what it's
+        testing). The next test case in the run inherits that open drawer, which can surface an
+        "Exit Betway?" confirmation dialog that then fails its first step. This is a UI-navigation leak,
+        distinct from the session leak that logout teardown already solves — not yet addressed.
+      </span>
+    </li>
+  </ul>
+
+  <footer class="doc-foot">
+    AI-Powered Autonomous Mobile Testing Platform — com.betwayafrica.za · Deposit-flow safety fix and
+    follow-on test-isolation hardening.
+  </footer>
+
+</div>
