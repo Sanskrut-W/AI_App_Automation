@@ -305,6 +305,14 @@ export class TestStepExecutor implements ITestStepExecutor {
         await this.interactionDriver.sendKeys(locator, value);
         return 'Typed text into element.';
       }
+      case ActionType.CLEAR:
+        await this.interactionDriver.clearText(this.requireLocator(step));
+        return 'Cleared element text.';
+      case ActionType.PRESS_IME_ACTION: {
+        const imeAction = step.value ?? 'search';
+        await this.interactionDriver.pressImeAction(imeAction);
+        return `Pressed IME action "${imeAction}".`;
+      }
       case ActionType.SCROLL:
         await this.interactionDriver.scroll(this.requireScrollDirection(step));
         return 'Scrolled screen.';

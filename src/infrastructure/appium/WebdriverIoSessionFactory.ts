@@ -40,6 +40,8 @@ export class WebdriverIoSessionFactory implements IWebdriverSessionFactory {
           click: (...args: Parameters<typeof element.click>) => element.click(...args),
           getText: (...args: Parameters<typeof element.getText>) => element.getText(...args),
           setValue: (value: string) => element.setValue(value),
+          clearValue: (...args: Parameters<typeof element.clearValue>) =>
+            element.clearValue(...args),
         };
       },
     };

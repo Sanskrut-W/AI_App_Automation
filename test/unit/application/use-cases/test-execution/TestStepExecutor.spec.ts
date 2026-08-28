@@ -69,6 +69,8 @@ function createMocks() {
     tap: jest.fn().mockResolvedValue(undefined),
     back: jest.fn().mockResolvedValue(undefined),
     sendKeys: jest.fn().mockResolvedValue(undefined),
+    clearText: jest.fn().mockResolvedValue(undefined),
+    pressImeAction: jest.fn().mockResolvedValue(undefined),
     scroll: jest.fn().mockResolvedValue(undefined),
     swipe: jest.fn().mockResolvedValue(undefined),
     getText: jest.fn().mockResolvedValue(''),
@@ -133,6 +135,37 @@ describe('TestStepExecutor', () => {
     expect(result.status).toBe(StepStatus.PASSED);
     expect(result.stepNumber).toBe(1);
     expect(result.stackTrace).toBeNull();
+  });
+
+  it('executes a CLEAR step via clearText() and reports PASSED', async () => {
+    const mocks = createMocks();
+    const executor = createExecutor(mocks);
+
+    const result = await executor.execute(createStep({ action: ActionType.CLEAR }));
+
+    expect(mocks.interactionDriver.clearText).toHaveBeenCalledWith(LOCATOR);
+    expect(result.status).toBe(StepStatus.PASSED);
+  });
+
+  it('executes a PRESS_IME_ACTION step with the step value as the action name', async () => {
+    const mocks = createMocks();
+    const executor = createExecutor(mocks);
+
+    const result = await executor.execute(
+      createStep({ action: ActionType.PRESS_IME_ACTION, value: 'go' }),
+    );
+
+    expect(mocks.interactionDriver.pressImeAction).toHaveBeenCalledWith('go');
+    expect(result.status).toBe(StepStatus.PASSED);
+  });
+
+  it('defaults a PRESS_IME_ACTION step with no value to the "search" action', async () => {
+    const mocks = createMocks();
+    const executor = createExecutor(mocks);
+
+    await executor.execute(createStep({ action: ActionType.PRESS_IME_ACTION, value: null }));
+
+    expect(mocks.interactionDriver.pressImeAction).toHaveBeenCalledWith('search');
   });
 
   describe('screenshot checkpoints', () => {

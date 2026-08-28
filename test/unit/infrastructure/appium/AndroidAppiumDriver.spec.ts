@@ -15,6 +15,8 @@ import { ScreenCaptureError } from '../../../../src/core/errors/ScreenCaptureErr
 import { TapError } from '../../../../src/core/errors/TapError';
 import { NavigationError } from '../../../../src/core/errors/NavigationError';
 import { SendKeysError } from '../../../../src/core/errors/SendKeysError';
+import { ClearTextError } from '../../../../src/core/errors/ClearTextError';
+import { ImeActionError } from '../../../../src/core/errors/ImeActionError';
 import { ScrollError } from '../../../../src/core/errors/ScrollError';
 import { SwipeError } from '../../../../src/core/errors/SwipeError';
 import { GetTextError } from '../../../../src/core/errors/GetTextError';
@@ -38,6 +40,7 @@ function createMockHandle(sessionId: string): jest.Mocked<IAppiumSessionHandle> 
       click: jest.fn().mockResolvedValue(undefined),
       getText: jest.fn().mockResolvedValue(''),
       setValue: jest.fn().mockResolvedValue(undefined),
+      clearValue: jest.fn().mockResolvedValue(undefined),
     }),
     elementExists: jest.fn().mockResolvedValue(true),
     getWindowSize: jest.fn().mockResolvedValue({ width: 1080, height: 1920 }),
@@ -398,6 +401,7 @@ describe('AndroidAppiumDriver', () => {
         click: clickMock,
         getText: jest.fn(),
         setValue: jest.fn(),
+        clearValue: jest.fn().mockResolvedValue(undefined),
       });
       sessionFactory.createRemote.mockResolvedValue(handle);
       await driver.createSession({ deviceId: 'emulator-5554' });
@@ -444,6 +448,7 @@ describe('AndroidAppiumDriver', () => {
         click: jest.fn().mockRejectedValue(new Error('element not interactable')),
         getText: jest.fn(),
         setValue: jest.fn(),
+        clearValue: jest.fn().mockResolvedValue(undefined),
       });
       sessionFactory.createRemote.mockResolvedValue(handle);
       await driver.createSession({ deviceId: 'emulator-5554' });
@@ -538,6 +543,7 @@ describe('AndroidAppiumDriver', () => {
         click: jest.fn(),
         getText: jest.fn(),
         setValue: setValueMock,
+        clearValue: jest.fn(),
       });
       sessionFactory.createRemote.mockResolvedValue(handle);
       await driver.createSession({ deviceId: 'emulator-5554' });
@@ -551,13 +557,36 @@ describe('AndroidAppiumDriver', () => {
       expect(setValueMock).toHaveBeenCalledWith('hello');
     });
 
-    it('throws SendKeysError when setValue fails', async () => {
+    it('falls back to focusing the element and typing when setValue is rejected', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      const clickMock = jest.fn().mockResolvedValue(undefined);
+      handle.findElement.mockResolvedValue({
+        click: clickMock,
+        getText: jest.fn(),
+        setValue: jest.fn().mockRejectedValue(new Error('ACTION_SET_PROGRESS has failed')),
+        clearValue: jest.fn(),
+      });
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await driver.sendKeys(
+        { strategy: LocatorStrategy.RESOURCE_ID, value: 'com.example.app:id/input' },
+        'hello',
+      );
+
+      expect(clickMock).toHaveBeenCalled();
+      expect(handle.executeScript).toHaveBeenCalledWith('mobile: type', { text: 'hello' });
+    });
+
+    it('throws SendKeysError when setValue fails and the type fallback also fails', async () => {
       const { driver, sessionFactory } = createDriver();
       const handle = createMockHandle('abc-123');
       handle.findElement.mockResolvedValue({
-        click: jest.fn(),
+        click: jest.fn().mockRejectedValue(new Error('element not interactable')),
         getText: jest.fn(),
         setValue: jest.fn().mockRejectedValue(new Error('element not interactable')),
+        clearValue: jest.fn(),
       });
       sessionFactory.createRemote.mockResolvedValue(handle);
       await driver.createSession({ deviceId: 'emulator-5554' });
@@ -615,6 +644,86 @@ describe('AndroidAppiumDriver', () => {
     });
   });
 
+  describe('clearText', () => {
+    it('throws SessionNotActiveError when no session exists', async () => {
+      const { driver } = createDriver();
+
+      await expect(
+        driver.clearText({ strategy: LocatorStrategy.RESOURCE_ID, value: 'com.example.app:id/q' }),
+      ).rejects.toBeInstanceOf(SessionNotActiveError);
+    });
+
+    it('finds the element and clears it', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      const clearValueMock = jest.fn().mockResolvedValue(undefined);
+      handle.findElement.mockResolvedValue({
+        click: jest.fn(),
+        getText: jest.fn(),
+        setValue: jest.fn(),
+        clearValue: clearValueMock,
+      });
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await driver.clearText({
+        strategy: LocatorStrategy.RESOURCE_ID,
+        value: 'com.example.app:id/q',
+      });
+
+      expect(handle.findElement).toHaveBeenCalledWith('id:com.example.app:id/q');
+      expect(clearValueMock).toHaveBeenCalled();
+    });
+
+    it('throws ClearTextError when clearing fails', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      handle.findElement.mockResolvedValue({
+        click: jest.fn(),
+        getText: jest.fn(),
+        setValue: jest.fn(),
+        clearValue: jest.fn().mockRejectedValue(new Error('not editable')),
+      });
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await expect(
+        driver.clearText({ strategy: LocatorStrategy.RESOURCE_ID, value: 'com.example.app:id/q' }),
+      ).rejects.toBeInstanceOf(ClearTextError);
+    });
+  });
+
+  describe('pressImeAction', () => {
+    it('throws SessionNotActiveError when no session exists', async () => {
+      const { driver } = createDriver();
+
+      await expect(driver.pressImeAction('search')).rejects.toBeInstanceOf(SessionNotActiveError);
+    });
+
+    it('performs the named editor action', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await driver.pressImeAction('search');
+
+      expect(handle.executeScript).toHaveBeenCalledWith('mobile: performEditorAction', {
+        action: 'search',
+      });
+    });
+
+    it('throws ImeActionError when the command fails', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      handle.executeScript.mockRejectedValue(new Error('no focused editor'));
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await expect(driver.pressImeAction('search')).rejects.toBeInstanceOf(ImeActionError);
+    });
+  });
+
   describe('getText', () => {
     it('throws SessionNotActiveError when no session exists', async () => {
       const { driver } = createDriver();
@@ -634,6 +743,7 @@ describe('AndroidAppiumDriver', () => {
         click: jest.fn(),
         getText: jest.fn().mockResolvedValue('Result: 42'),
         setValue: jest.fn(),
+        clearValue: jest.fn().mockResolvedValue(undefined),
       });
       sessionFactory.createRemote.mockResolvedValue(handle);
       await driver.createSession({ deviceId: 'emulator-5554' });

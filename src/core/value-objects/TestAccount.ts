@@ -6,6 +6,9 @@ import { TestStep } from './TestStep';
 export interface TestAccount {
   mobileNumber: string;
   password: string;
+  /** Which named account this came from, for logging. Absent for the single default account.
+   *  Never log the credentials themselves — this id is the safe thing to record. */
+  accountId?: string;
   /** Optional teardown recipe: run once after every executed test case (see
    * TestExecutionEngine), so no test case ever inherits a leftover logged-in session from
    * whichever one ran before it. Its own first step must be a "logged in?" gate check — the

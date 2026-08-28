@@ -25,9 +25,10 @@ export interface ExecuteCliArgs {
   packageName: string;
   /** Which module's stored suite to run — modules never run mixed together. */
   module: TestModule;
-  /** Runs only this one stored test case instead of the whole module — for iterating on a single
-   * test case without disturbing the rest of the suite. */
-  testCaseId?: string;
+  /** Runs only these stored test cases instead of the whole module, in the order given — for
+   * iterating on one test case without disturbing the rest of the suite, or for running a chosen
+   * few back-to-back in one session. Repeat --test-case-id to add more. */
+  testCaseIds?: string[];
   deviceId?: string;
   avdName?: string;
   bootTimeoutMs?: number;
@@ -72,8 +73,10 @@ Execute-only (no APK, no crawl — just re-runs one module of an app's already-g
   --package <name>        Package name of a previously-tested app (see --list-apps)
   --module <name>         Which module's stored suite to run: ${TEST_MODULES.join(' | ')}
                           (modules always run in isolation, never mixed together)
-  --test-case-id <id>     Optional: run only this one stored test case from the module
-                          (id is the test case's JSON filename, without .json)
+  --test-case-id <id>     Optional: run only this stored test case from the module
+                          (id is the test case's JSON filename, without .json).
+                          Repeatable — several run back-to-back in the order given,
+                          sharing one session, with logout teardown between them.
   --device / --avd        Same as above
   --boot-timeout-ms <ms>  Same as above
 
@@ -102,7 +105,7 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
   let loginMobileNumber: string | undefined;
   let loginPassword: string | undefined;
   let excelFilePath: string | undefined;
-  let testCaseId: string | undefined;
+  const testCaseIds: string[] = [];
   let executeOnly = false;
   let importTestCases = false;
   let listApps = false;
@@ -156,7 +159,7 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
         i += 1;
         break;
       case '--test-case-id':
-        testCaseId = requireValue(argv, i, arg);
+        testCaseIds.push(requireValue(argv, i, arg));
         i += 1;
         break;
       case '--execute-only':
@@ -218,7 +221,7 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
       mode: 'execute',
       packageName,
       module: moduleArg,
-      testCaseId,
+      testCaseIds: testCaseIds.length > 0 ? testCaseIds : undefined,
       deviceId,
       avdName,
       bootTimeoutMs,

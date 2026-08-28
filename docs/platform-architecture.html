@@ -1,0 +1,1339 @@
+<title>Platform Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #FAF9F7;
+    --raised: #FFFFFF;
+    --sunken: #F1EEE9;
+    --ink: #14171C;
+    --slate: #59616E;
+    --faint: #8A8F99;
+    --rule: #E2DFDA;
+    --rule-strong: #CFCAC2;
+
+    /* Two runtime surfaces the whole document distinguishes: the native Android view
+       hierarchy and the WebView content rendered inside it. These are semantic, not decorative. */
+    --native: #1F5C8B;
+    --native-bg: #E8F0F6;
+    --webview: #A85D00;
+    --webview-bg: #F8EEE0;
+
+    --pass: #2E7D4F;
+    --fail: #B3261E;
+
+    --display: 'Familjen Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+
+    --col: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14171B;
+      --raised: #1B1F25;
+      --sunken: #1F242B;
+      --ink: #E8E6E2;
+      --slate: #A2A9B4;
+      --faint: #767D88;
+      --rule: #2B3038;
+      --rule-strong: #3A414B;
+
+      --native: #6FAFDE;
+      --native-bg: #17293A;
+      --webview: #E2A155;
+      --webview-bg: #33240F;
+
+      --pass: #6BBF8C;
+      --fail: #E38078;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #14171B;
+    --raised: #1B1F25;
+    --sunken: #1F242B;
+    --ink: #E8E6E2;
+    --slate: #A2A9B4;
+    --faint: #767D88;
+    --rule: #2B3038;
+    --rule-strong: #3A414B;
+
+    --native: #6FAFDE;
+    --native-bg: #17293A;
+    --webview: #E2A155;
+    --webview-bg: #33240F;
+
+    --pass: #6BBF8C;
+    --fail: #E38078;
+  }
+
+  :root[data-theme="light"] {
+    --paper: #FAF9F7;
+    --raised: #FFFFFF;
+    --sunken: #F1EEE9;
+    --ink: #14171C;
+    --slate: #59616E;
+    --faint: #8A8F99;
+    --rule: #E2DFDA;
+    --rule-strong: #CFCAC2;
+
+    --native: #1F5C8B;
+    --native-bg: #E8F0F6;
+    --webview: #A85D00;
+    --webview-bg: #F8EEE0;
+
+    --pass: #2E7D4F;
+    --fail: #B3261E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 120px;
+  }
+
+  @media (min-width: 1100px) {
+    .shell { grid-template-columns: 200px minmax(0, 1fr); gap: 56px; }
+  }
+
+  /* ---------- masthead ---------- */
+
+  header.masthead {
+    grid-column: 1 / -1;
+    padding: 72px 0 40px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 48px;
+  }
+
+  .eyebrow {
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin: 0 0 18px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(38px, 6vw, 62px);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.022em;
+    margin: 0 0 22px;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+
+  .standfirst {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--slate);
+    max-width: 62ch;
+    margin: 0 0 34px;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+  }
+
+  .fact {
+    padding-right: 34px;
+    margin-right: 34px;
+    border-right: 1px solid var(--rule);
+  }
+  .fact:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+
+  .fact dt {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 4px;
+  }
+  .fact dd {
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---------- rail ---------- */
+
+  nav.rail { display: none; }
+
+  @media (min-width: 1100px) {
+    nav.rail {
+      display: block;
+      grid-column: 1;
+      position: sticky;
+      top: 40px;
+      align-self: start;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+    }
+    nav.rail ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-family: var(--display);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    nav.rail li { margin-bottom: 13px; }
+    nav.rail a {
+      color: var(--slate);
+      text-decoration: none;
+      display: block;
+      border-left: 2px solid var(--rule);
+      padding-left: 12px;
+      transition: color .15s, border-color .15s;
+    }
+    nav.rail a:hover, nav.rail a:focus-visible {
+      color: var(--ink);
+      border-left-color: var(--ink);
+    }
+    nav.rail .num {
+      font-variant-numeric: tabular-nums;
+      color: var(--faint);
+      margin-right: 7px;
+    }
+  }
+
+  main { grid-column: 1 / -1; min-width: 0; }
+  @media (min-width: 1100px) { main { grid-column: 2; } }
+
+  /* ---------- sections ---------- */
+
+  section { margin-bottom: 76px; scroll-margin-top: 28px; }
+
+  h2 {
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin: 0 0 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule-strong);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  h2 .num {
+    font-variant-numeric: tabular-nums;
+    color: var(--faint);
+    font-size: 13px;
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 26px 0 14px;
+    text-wrap: balance;
+  }
+
+  h4 {
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 30px 0 10px;
+    letter-spacing: -0.005em;
+  }
+
+  p { margin: 0 0 17px; max-width: var(--col); }
+  ul, ol { max-width: var(--col); padding-left: 22px; margin: 0 0 17px; }
+  li { margin-bottom: 8px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.845em;
+    background: var(--sunken);
+    padding: 1.5px 5px;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+
+  a { color: var(--ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--native); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+
+  .lede {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--slate);
+    max-width: 60ch;
+    margin: 16px 0 26px;
+  }
+
+  /* ---------- surface tags (native vs webview) ---------- */
+
+  .tag {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 2.5px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .tag.native { background: var(--native-bg); color: var(--native); }
+  .tag.web { background: var(--webview-bg); color: var(--webview); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    align-items: center;
+    font-family: var(--display);
+    font-size: 13.5px;
+    color: var(--slate);
+    margin: 0 0 30px;
+    padding: 13px 16px;
+    background: var(--sunken);
+    border-radius: 4px;
+    max-width: var(--col);
+  }
+  .legend span { display: flex; align-items: center; gap: 9px; }
+  .swatch { width: 13px; height: 13px; border-radius: 2px; flex: none; }
+
+  /* ---------- code blocks ---------- */
+
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.62;
+    background: var(--raised);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    padding: 16px 18px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0 0 20px;
+  }
+  pre.native { border-left-color: var(--native); }
+  pre.web { border-left-color: var(--webview); }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .cmt { color: var(--faint); }
+
+  /* ---------- layer stack ---------- */
+
+  .stack { margin: 0 0 26px; border: 1px solid var(--rule-strong); border-radius: 5px; overflow: hidden; }
+
+  .layer {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px 20px;
+    padding: 15px 18px;
+    background: var(--raised);
+    border-bottom: 1px solid var(--rule);
+  }
+  .layer:last-child { border-bottom: 0; }
+  @media (min-width: 700px) {
+    .layer { grid-template-columns: 150px minmax(0, 1fr) 132px; align-items: baseline; }
+  }
+
+  .layer-name {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 15.5px;
+  }
+  .layer-name em {
+    display: block;
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--faint);
+    margin-top: 2px;
+  }
+  .layer-desc { font-size: 15px; color: var(--slate); line-height: 1.5; }
+  .layer-dep {
+    font-family: var(--display);
+    font-size: 11.5px;
+    color: var(--faint);
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------- tables ---------- */
+
+  .scroller { overflow-x: auto; margin: 0 0 24px; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;
+    font-size: 14.5px;
+  }
+  th {
+    font-family: var(--display);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--faint);
+    padding: 0 16px 9px 0;
+    border-bottom: 1px solid var(--rule-strong);
+    vertical-align: bottom;
+  }
+  td {
+    padding: 13px 16px 13px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.5;
+    color: var(--slate);
+  }
+  td:first-child { color: var(--ink); }
+  th:last-child, td:last-child { padding-right: 0; }
+  td code { font-size: 12.2px; }
+
+  /* ---------- ordered ladder ---------- */
+
+  .ladder { list-style: none; padding: 0; margin: 0 0 24px; max-width: var(--col); counter-reset: rung; }
+  .ladder li {
+    counter-increment: rung;
+    position: relative;
+    padding: 0 0 20px 44px;
+    margin: 0;
+    border-left: 1px solid var(--rule-strong);
+  }
+  .ladder li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .ladder li::before {
+    content: counter(rung);
+    position: absolute;
+    left: -14px;
+    top: 0;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    color: var(--slate);
+    font-family: var(--display);
+    font-size: 12.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    display: grid;
+    place-items: center;
+  }
+  .ladder .rung-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16.5px;
+    display: block;
+    margin: 2px 0 5px;
+  }
+  .ladder .rung-body { color: var(--slate); font-size: 15.5px; }
+
+  /* ---------- callout ---------- */
+
+  .note {
+    border-left: 3px solid var(--webview);
+    background: var(--webview-bg);
+    padding: 15px 20px;
+    border-radius: 0 4px 4px 0;
+    margin: 0 0 24px;
+    max-width: var(--col);
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note .note-label {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--webview);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .note.warn { border-left-color: var(--fail); background: var(--sunken); }
+  .note.warn .note-label { color: var(--fail); }
+
+  /* ---------- status ---------- */
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 0 0 26px;
+  }
+  .status-cell { background: var(--raised); padding: 17px 18px; }
+  .status-cell .k {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 6px;
+  }
+  .status-cell .v {
+    font-family: var(--display);
+    font-size: 21px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .status-cell .v.pass { color: var(--pass); }
+  .status-cell .sub { font-size: 13.5px; color: var(--slate); margin-top: 3px; line-height: 1.4; }
+
+  footer {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 22px;
+    font-family: var(--display);
+    font-size: 13px;
+    color: var(--faint);
+    max-width: var(--col);
+  }
+</style>
+
+<div class="shell">
+
+  <header class="masthead">
+    <p class="eyebrow">Solution &amp; Architecture Reference</p>
+    <h1>AI-Powered Autonomous Mobile Testing Platform</h1>
+    <p class="standfirst">
+      A TypeScript platform that crawls a real Android app, generates executable test cases from
+      what it finds, runs them against physical devices, and repairs its own locators when the UI
+      moves underneath it. Built and proven against a production betting app whose entire content
+      area is a WebView.
+    </p>
+    <dl class="facts">
+      <div class="fact"><dt>Source files</dt><dd>220</dd></div>
+      <div class="fact"><dt>Unit tests</dt><dd>683</dd></div>
+      <div class="fact"><dt>Suites</dt><dd>77</dd></div>
+      <div class="fact"><dt>Target</dt><dd>Android</dd></div>
+    </dl>
+  </header>
+
+  <nav class="rail" aria-label="Sections">
+    <ol>
+      <li><a href="#what"><span class="num">01</span>What it does</a></li>
+      <li><a href="#layers"><span class="num">02</span>Layered architecture</a></li>
+      <li><a href="#pipeline"><span class="num">03</span>The pipeline</a></li>
+      <li><a href="#locators"><span class="num">04</span>Locator model</a></li>
+      <li><a href="#execution"><span class="num">05</span>Execution engine</a></li>
+      <li><a href="#healing"><span class="num">06</span>Self-healing</a></li>
+      <li><a href="#webview"><span class="num">07</span>WebView handling</a></li>
+      <li><a href="#parallel"><span class="num">08</span>Parallel execution</a></li>
+      <li><a href="#safety"><span class="num">09</span>Safety model</a></li>
+      <li><a href="#status"><span class="num">10</span>Status &amp; gaps</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="what">
+      <h2><span class="num">01</span> What it does</h2>
+
+      <p class="lede">
+        Four operating modes, one codebase. Each is a distinct entry point through the same CLI,
+        sharing the same domain model and the same device drivers.
+      </p>
+
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr><th>Mode</th><th>Invocation</th><th>What happens</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Full run</strong></td>
+              <td><code>--apk &lt;path&gt; --device &lt;serial&gt;</code></td>
+              <td>Installs the APK, crawls the app depth-first, persists every screen and element,
+                  generates test cases, then executes the hamburger-menu suite and writes an HTML report.</td>
+            </tr>
+            <tr>
+              <td><strong>Execute-only</strong></td>
+              <td><code>--execute-only --package --module</code></td>
+              <td>No APK, no crawl. Re-runs an already-generated suite. <code>--test-case-id</code> is
+                  repeatable, so a chosen few run back-to-back in one session with logout teardown between them.</td>
+            </tr>
+            <tr>
+              <td><strong>Import</strong></td>
+              <td><code>--import-test-cases --excel-file</code></td>
+              <td>Turns a hand-written Excel sheet into real executable test cases, resolving each
+                  described step against elements a prior crawl already captured. Fully offline — no device needed.</td>
+            </tr>
+            <tr>
+              <td><strong>List apps</strong></td>
+              <td><code>--list-apps</code></td>
+              <td>Lists package names that have a stored suite on disk.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Per-app, per-module isolation</h4>
+      <p>
+        Every artifact an app produces lives under its own folder, and test cases are further split
+        by module so that one module's side effects can never contaminate another's assumptions
+        about screen state — logging in for real during the <code>login</code> module must not
+        change what the <code>hamburger-menu</code> suite expects to find.
+      </p>
+
+<pre><code>artifacts/apps/&lt;packageName&gt;/
+├── screenshots/            <span class="cmt">crawl-time captures</span>
+├── xml-dumps/              <span class="cmt">raw UiAutomator2 hierarchy per screen</span>
+├── screen-repository/      <span class="cmt">Screen records + fingerprints</span>
+├── element-repository/     <span class="cmt">Element records + ranked locators</span>
+├── test-cases/
+│   ├── hamburger-menu/  ├── login/  ├── sign-up/  └── manual/
+├── navigation-graph.json
+├── execution-screenshots/  <span class="cmt">labelled checkpoints + every failure</span>
+├── execution-logs/
+└── reports/                <span class="cmt">generated HTML</span></code></pre>
+
+      <p>
+        The runtime dependency list is deliberately short: <code>webdriverio</code> for the Appium
+        session, <code>@xmldom/xmldom</code> for hierarchy parsing, <code>exceljs</code> for the
+        import path, <code>winston</code> for logging, <code>dotenv</code> for config, and
+        <code>app-info-parser</code> for reading APK manifests. Gemini is reached over plain HTTP
+        through the platform's own client — no vendor SDK.
+      </p>
+    </section>
+
+    <!-- 02 -->
+    <section id="layers">
+      <h2><span class="num">02</span> Layered architecture</h2>
+
+      <p class="lede">
+        Clean Architecture, enforced by direction of dependency: every arrow points inward, and the
+        domain at the centre imports nothing at all.
+      </p>
+
+      <div class="stack">
+        <div class="layer">
+          <div class="layer-name">Core <em>src/core</em></div>
+          <div class="layer-desc">Entities (<code>Screen</code>, <code>Element</code>,
+            <code>TestCase</code>, <code>Device</code>), value objects
+            (<code>ElementLocator</code>, <code>TestStep</code>, <code>ElementFingerprint</code>),
+            enums, and ~50 typed domain errors.</div>
+          <div class="layer-dep">imports nothing</div>
+        </div>
+        <div class="layer">
+          <div class="layer-name">Application <em>src/application</em></div>
+          <div class="layer-desc">Use cases (crawler, capture, fingerprint, healing, generation,
+            execution, pipeline) plus the <em>ports</em> they depend on — driver, repository, AI and
+            parser interfaces. DTOs cross the boundary.</div>
+          <div class="layer-dep">→ core</div>
+        </div>
+        <div class="layer">
+          <div class="layer-name">Infrastructure <em>src/infrastructure</em></div>
+          <div class="layer-desc">Adapters implementing those ports: Appium/WebdriverIO, ADB,
+            emulator control, APK reading, XML parsing, file-system repositories, Excel reader,
+            Gemini client, Winston logger, HTML report generator.</div>
+          <div class="layer-dep">→ application, core</div>
+        </div>
+        <div class="layer">
+          <div class="layer-name">Shared <em>src/shared</em></div>
+          <div class="layer-desc">Cross-cutting primitives with no business meaning:
+            <code>Result&lt;T,E&gt;</code>, retry with backoff, polling, path resolution, text
+            predicates, config provider, clock and id interfaces.</div>
+          <div class="layer-dep">leaf utilities</div>
+        </div>
+        <div class="layer">
+          <div class="layer-name">Bootstrap + CLI <em>src/bootstrap, src/interfaces</em></div>
+          <div class="layer-desc">The composition root — the single place concrete classes are
+            constructed and wired — plus argument parsing and command handling.</div>
+          <div class="layer-dep">→ everything</div>
+        </div>
+      </div>
+
+      <h4>Two conventions that carry most of the weight</h4>
+      <p>
+        <strong>Ports and adapters.</strong> The application layer never names a concrete class.
+        <code>AndroidAppiumDriver</code> implements three separate narrow interfaces —
+        <code>IAppiumDriver</code> (session lifecycle), <code>ICaptureDriver</code> (screenshot,
+        page source, current package/activity) and <code>IInteractionDriver</code> (tap, type,
+        clear, scroll, swipe, IME action, existence check) — so a consumer depends only on the
+        slice it uses. Adding iOS means writing an <code>IOSAppiumDriver</code> against the same
+        three interfaces; nothing is inherited.
+      </p>
+      <p>
+        <strong><code>Result&lt;T, E&gt;</code>.</strong> Fallible use cases return an explicit
+        result rather than throwing, which forces callers to handle the failure branch. Exceptions
+        are reserved for genuinely exceptional conditions inside adapters, where they are caught and
+        converted to typed domain errors at the boundary.
+      </p>
+    </section>
+
+    <!-- 03 -->
+    <section id="pipeline">
+      <h2><span class="num">03</span> The pipeline</h2>
+
+      <p class="lede">
+        <code>PipelineOrchestrator</code> sequences the whole run. Each stage's output is persisted
+        before the next begins, so any stage can be re-entered without repeating the ones before it.
+      </p>
+
+      <ol class="ladder">
+        <li>
+          <span class="rung-title">Device &amp; app preparation</span>
+          <span class="rung-body">Resolve a device (attached serial, or boot a named AVD and wait for
+          it), validate the APK, read its manifest for package and launch activity, install and launch.</span>
+        </li>
+        <li>
+          <span class="rung-title">Capture</span>
+          <span class="rung-body"><code>ScreenCaptureService</code> takes a screenshot and a raw
+          UiAutomator2 XML hierarchy dump, writing both to disk and returning their paths plus the
+          current package and activity.</span>
+        </li>
+        <li>
+          <span class="rung-title">Parse</span>
+          <span class="rung-body"><code>XmlElementParser</code> walks the hierarchy into a flat list
+          of <code>Element</code> records, computing a positional XPath for each node and deriving a
+          ranked set of locator candidates.</span>
+        </li>
+        <li>
+          <span class="rung-title">Fingerprint &amp; deduplicate</span>
+          <span class="rung-body"><code>FingerprintEngine</code> produces a stable SHA-256 signature
+          per screen and per element. Identical screens collapse to one record; the crawler uses the
+          signature to know whether a tap actually went anywhere.</span>
+        </li>
+        <li>
+          <span class="rung-title">Crawl</span>
+          <span class="rung-body">Depth-first: tap the first unvisited clickable element, re-capture,
+          recurse or back out, bounded by <code>--max-screens</code> (default 100) and
+          <code>--max-depth</code> (default 20). Builds a navigation graph as it goes.</span>
+        </li>
+        <li>
+          <span class="rung-title">Generate</span>
+          <span class="rung-body">Four generators turn stored screens and elements into test cases —
+          menu navigation, login, sign-up, and the Excel-driven manual importer. Generation is
+          entirely offline and deterministic; it reads the repositories, never the device.</span>
+        </li>
+        <li>
+          <span class="rung-title">Execute</span>
+          <span class="rung-body"><code>TestExecutionEngine</code> opens one session per module,
+          runs each case's steps through <code>TestStepExecutor</code>, and tears down with logout
+          between cases.</span>
+        </li>
+        <li>
+          <span class="rung-title">Report</span>
+          <span class="rung-body"><code>ReportGenerator</code> renders an HTML report: per-step
+          status, timings, captions, embedded screenshots for labelled checkpoints and for every
+          failure.</span>
+        </li>
+      </ol>
+
+      <p>
+        Two timing behaviours in the crawler are worth calling out because they were both discovered
+        against real hardware rather than reasoned about up front. A fixed 500&nbsp;ms settle before
+        every post-tap capture stops the crawler recording a drawer mid-slide-in — without it, an
+        entire generated menu suite once described the screen <em>underneath</em> the drawer. And
+        because a WebView page load is far slower and less predictable than a native animation, the
+        sign-up form instead re-captures until its signature stops changing between two consecutive
+        attempts, up to five tries.
+      </p>
+    </section>
+
+    <!-- 04 -->
+    <section id="locators">
+      <h2><span class="num">04</span> Locator model</h2>
+
+      <p>
+        Every parsed element carries a <em>ranked list</em> of locator candidates, not a single
+        locator. The crawler tries them in priority order and stops at the first that works, which
+        is what lets it keep moving on screens where the accessibility tree is transiently
+        inconsistent.
+      </p>
+
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr><th>Priority</th><th>Strategy</th><th>Resolves to</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td><code>resource-id</code></td><td>Appium <code>id:</code></td>
+                <td>Strongest for native views. <strong>Cannot resolve a bare WebView id</strong> — see §7.</td></tr>
+            <tr><td>2</td><td><code>accessibility-id</code></td><td><code>accessibility id:</code></td>
+                <td>From <code>content-desc</code>.</td></tr>
+            <tr><td>3</td><td><code>xpath-text</code></td><td>raw XPath</td>
+                <td>Matches on visible text. Also the escape hatch for arbitrary XPath.</td></tr>
+            <tr><td>4</td><td><code>xpath-class-index</code></td><td>raw XPath</td>
+                <td>Positional path built during the walk — structural, brittle by nature.</td></tr>
+            <tr><td>5</td><td><code>coordinates</code></td><td><code>mobile: clickGesture</code></td>
+                <td>Bounds-centre tap. Bypasses the accessibility tree entirely.</td></tr>
+            <tr><td>—</td><td><code>android-uiautomator</code></td><td><code>android=</code></td>
+                <td>Authored, never auto-derived. Exists for <code>UiScrollable.scrollIntoView</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why <code>android-uiautomator</code> exists</h4>
+      <p>
+        Reaching an item in a virtualized list cannot be done reliably with "swipe N times, then
+        assert" — fling momentum varies per gesture, and a swipe count calibrated on an emulator
+        lands a row short or long on a physical device. A <code>UiScrollable</code> expression
+        instead keeps swiping <em>until the target actually materializes</em>, evaluated on-device.
+      </p>
+
+      <div class="note warn">
+        <span class="note-label">Two traps this strategy carries</span>
+        <p>
+          <code>scrollIntoView</code> returns the <em>scrollable container</em>, not the row it
+          found. An existence check against that expression therefore always reports true, and
+          calling <code>.click()</code> on it taps the middle of the list. Scroll with the
+          expression, then click the row by its own locator.
+        </p>
+        <p>
+          <code>scrollIntoView(text("X"))</code> matches <em>any</em> node with that text anywhere on
+          screen and stops immediately. When a balance panel began rendering the text "Betway
+          Rewards", the search matched it in 1.8&nbsp;s without scrolling at all and the drawer row
+          was never reached. Scoping the selector to
+          <code>resourceId(navTitle).text(label)</code> makes the identical call scroll properly.
+        </p>
+      </div>
+
+      <p>
+        The nine step actions are <code>click</code>, <code>type</code>, <code>clear</code>,
+        <code>scroll</code>, <code>swipe</code>, <code>press_ime_action</code>, <code>back</code>,
+        <code>wait</code>, plus the two assertions <code>verify_text</code> and
+        <code>verify_element_exists</code>. Three of them — <code>swipe</code>,
+        <code>clear</code> and <code>press_ime_action</code> — were added because a WebView surface
+        demanded them; §7 explains each.
+      </p>
+    </section>
+
+    <!-- 05 -->
+    <section id="execution">
+      <h2><span class="num">05</span> Execution engine</h2>
+
+      <h4>Credentials resolve per device, at execution time</h4>
+      <p>
+        Generated test cases contain <code>{{account.mobileNumber}}</code> and
+        <code>{{account.password}}</code> placeholders, never literal secrets. Before a session
+        opens, <code>TestExecutionEngine</code> looks up the account bound to the device serial and
+        substitutes them. Two consequences follow: stored test-case JSON holds no password, and two
+        devices can run the same case concurrently as different accounts.
+      </p>
+
+<pre><code>config/test-accounts.json   <span class="cmt">(gitignored)</span>
+{
+  "accounts":       { "s21-primary": {...}, "s22-secondary": {...} },
+  "deviceAccounts": { "&lt;deviceA-serial&gt;": "s21-primary",
+                      "&lt;deviceB-serial&gt;": "s22-secondary" }
+}</code></pre>
+
+      <p>
+        An unresolved placeholder is a hard failure <em>before</em> the session opens — never a
+        value passed through. Typing a literal <code>{{account.password}}</code> into a real login
+        form repeatedly locks the account, which is not a hypothetical: it has already happened once
+        on this project's second test account.
+      </p>
+
+      <h4>The step fallback ladder</h4>
+      <p>
+        <code>TestStepExecutor.execute()</code> is where resilience lives. A failing step is not
+        immediately a failing test:
+      </p>
+
+      <ol class="ladder">
+        <li>
+          <span class="rung-title">Perform</span>
+          <span class="rung-body">Dispatch the action. On success, capture a screenshot if the step
+          is labelled, and pass.</span>
+        </li>
+        <li>
+          <span class="rung-title">Optional? Pass as skipped</span>
+          <span class="rung-body">A step marked <code>optional</code> that fails becomes a no-op
+          pass — for conditional things like a popup that does not appear every run. It bypasses the
+          rungs below entirely.</span>
+        </li>
+        <li>
+          <span class="rung-title">Dismiss an overlay, then retry once</span>
+          <span class="rung-body">Look for a close/dismiss/skip control, tap it, <strong>re-capture
+          and check the result is not a real-money screen</strong>, then retry the original step.</span>
+        </li>
+        <li>
+          <span class="rung-title">Heal the locator, then retry once</span>
+          <span class="rung-body">Re-parse the current screen and fingerprint-match the stored
+          element against every candidate (§6). On a confident match, update the repository and
+          retry.</span>
+        </li>
+        <li>
+          <span class="rung-title">Fail with evidence</span>
+          <span class="rung-body">Capture a screenshot regardless of labelling, record the reason and
+          stack trace, and stop the case.</span>
+        </li>
+      </ol>
+
+      <p>
+        Screenshots are captured only for <em>labelled</em> steps plus any failed step. Capturing
+        every step produced ~146 images for a single 13-item menu tour, burying the handful that
+        actually evidenced anything; the label doubles as the report caption.
+      </p>
+    </section>
+
+    <!-- 06 -->
+    <section id="healing">
+      <h2><span class="num">06</span> Self-healing</h2>
+
+      <p>
+        When a stored locator stops resolving, <code>LocatorHealingEngine</code> re-parses the live
+        screen and scores the stored element's fingerprint against every fresh candidate. The
+        comparison is deterministic and weighted — no model involved:
+      </p>
+
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Component</th><th>Weight</th><th>Component</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td>className</td><td>0.25</td><td>bounds</td><td>0.10</td></tr>
+            <tr><td>resourceId</td><td>0.20</td><td>parentClassName</td><td>0.05</td></tr>
+            <tr><td>accessibilityId</td><td>0.15</td><td>childClassNames</td><td>0.05</td></tr>
+            <tr><td>text</td><td>0.15</td><td>clickable</td><td>0.05</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Class name and resource id dominate because they are the most stable identifiers; bounds
+        contribute least because they shift across screen sizes. Above a 0.6 confidence threshold,
+        the element repository is updated so the healed locator persists into future runs rather
+        than being rediscovered every time.
+      </p>
+      <p>
+        Gemini is consulted <em>only</em> if an AI fallback is injected and deterministic matching
+        found nothing confident enough. The AI layer sits behind
+        <code>IAiLocatorHealingFallback</code> and <code>IAiScreenAnalyzer</code>, with rate
+        limiting, timeout, retry-with-backoff, and strict response validation in front of it. With
+        no API key configured the platform runs fully deterministically.
+      </p>
+      <p>
+        Healing refuses to run at all on a screen that looks like a real-money flow — see §9.
+      </p>
+    </section>
+
+    <!-- 07 — the main event -->
+    <section id="webview">
+      <h2><span class="num">07</span> How WebView is handled</h2>
+
+      <p class="lede">
+        The target app renders everything below its native toolbar inside a WebView. This section is
+        the accumulated result of getting that to work reliably on physical devices — every item
+        below was diagnosed live, not anticipated.
+      </p>
+
+      <h3>The core decision: no context switching</h3>
+
+      <p>
+        Appium offers a hybrid-app model where you call <code>getContexts()</code>, switch from
+        <code>NATIVE_APP</code> to <code>WEBVIEW_&lt;package&gt;</code>, and then drive the page with
+        ordinary Selenium CSS selectors through ChromeDriver.
+        <strong>This platform never does that.</strong> It stays in the native context permanently
+        and drives WebView content through UiAutomator2's accessibility tree — the same tree, the
+        same locators, and the same driver methods it uses for native widgets.
+      </p>
+
+      <div class="legend">
+        <span><span class="swatch" style="background: var(--native)"></span> Native view hierarchy</span>
+        <span><span class="swatch" style="background: var(--webview)"></span> WebView content, reached through that same hierarchy</span>
+      </div>
+
+      <p>Three reasons that choice holds up here:</p>
+      <ul>
+        <li><strong>Version coupling.</strong> Context switching requires a ChromeDriver binary
+        matching the device's WebView version. Across a mixed fleet of physical devices that becomes
+        a per-device provisioning problem before a single test runs.</li>
+        <li><strong>Mixed screens.</strong> Real screens interleave the two — a native toolbar and
+        drawer wrapped around WebView content, with popups from both worlds stacking on top of each
+        other. A test that has to switch context mid-flow to tap a native toolbar button, switch back
+        for the page, and switch again for a native dialog is far more fragile than one that never
+        switches at all.</li>
+        <li><strong>It works.</strong> WebView nodes surface in the accessibility tree as
+        <code>android.widget.TextView</code>, <code>android.widget.EditText</code> and friends,
+        carrying their web <code>id</code> attributes through as <code>resource-id</code>. That is
+        enough to locate and act on them.</li>
+      </ul>
+
+      <p>
+        The cost is that WebView elements behave subtly differently from native ones through that
+        interface. Each difference below is handled explicitly.
+      </p>
+
+      <h3>Trap 1 — bare WebView ids are unreachable via <code>resource-id</code></h3>
+
+      <p>
+        A native Android view id arrives fully qualified:
+        <code>com.betwayafrica.za:id/toolbarDeposit</code>. A WebView id arrives <em>bare</em>:
+        <code>transaction-history-search-btn</code>, with no package part at all. The
+        <code>resource-id</code> strategy maps to Appium's <code>id</code> locator, which
+        <em>prefixes a bare id with the app package</em> — so it silently searches for
+        <code>com.betwayafrica.za:id/transaction-history-search-btn</code>, which does not exist.
+      </p>
+
+<pre class="web"><code><span class="cmt">// Never resolves — the id strategy package-prefixes it.</span>
+{ strategy: 'resource-id', value: 'transaction-history-search-btn' }
+
+<span class="cmt">// Resolves. XPath matches the attribute literally.</span>
+const WEB_ID = (id) =&gt; ({
+  strategy: 'xpath-text',
+  value: `//*[@resource-id="${id}"]`,
+});</code></pre>
+
+      <div class="note">
+        <span class="note-label">Why this one mattered most</span>
+        <p>
+          The failure is <em>silent in exactly the wrong place</em>. Every popup-dismissal step in
+          every generated suite targeted <code>modal-close-btn</code> — a bare WebView id — and was
+          marked <code>optional</code>. So each one failed to resolve, was treated as "the popup
+          isn't there", and passed. The suites had been walking straight past real popups for weeks
+          while reporting green. Fixing the locator immediately made the reset script start
+          dismissing two stacked popup layers it had never touched.
+        </p>
+      </div>
+
+      <h3>Trap 2 — WebView text nodes report <code>clickable="false"</code></h3>
+
+      <p>
+        Tab labels and rows inside the WebView carry no <code>resource-id</code> and advertise
+        <code>clickable="false"</code>, so a naive "only tap clickable elements" filter skips them
+        entirely. A tap at their coordinates is nonetheless routed to the WebView and handled
+        correctly. They are targeted by exact text:
+      </p>
+
+<pre class="web"><code>const WEB_TEXT = (text) =&gt; ({
+  strategy: 'xpath-text',
+  value: `//android.widget.TextView[@text="${text}"]`,
+});</code></pre>
+
+      <p>
+        Text matching demands care about uniqueness. "Deposits" and "Withdrawals" also appear on the
+        toolbar and bottom navigation, so the filter tabs are targeted by their stable WebView ids
+        instead. Where an id is unavailable, the selector is scoped to the container that makes it
+        unique — drawer rows match on <code>resourceId(navTitle)</code> <em>and</em> text, because
+        several drawer labels are duplicated elsewhere on screen.
+      </p>
+
+      <h3>Trap 3 — <code>setValue</code> rejected with <code>ACTION_SET_PROGRESS</code></h3>
+
+      <p>
+        <code>setValue</code> asks the accessibility layer to set an element's text. A WebView-hosted
+        input can advertise the wrong action for that: the transaction-history search box reports
+        <code>ACTION_SET_PROGRESS</code>, as though it were a slider, and rejects the call — while
+        accepting ordinary keystrokes perfectly well. <code>sendKeys</code> catches the rejection and
+        falls back to focus-then-type:
+      </p>
+
+<pre class="web"><code>try {
+  await element.setValue(value);
+} catch (setValueError) {
+  <span class="cmt">// Focus it and type instead — same route as the coordinate branch,</span>
+  <span class="cmt">// but still located via the accessibility tree, so the step stays</span>
+  <span class="cmt">// portable across devices and screen sizes.</span>
+  await element.click();
+  await handle.executeScript('mobile: type', { text: value });
+}</code></pre>
+
+      <h3>Trap 4 — the search box ignores keystrokes until the IME action fires</h3>
+
+      <p>
+        Typing into that same box filters nothing. The page listens for the keyboard's Search/Go key,
+        not for input events. This required a new framework action,
+        <code>press_ime_action</code>, carrying the action name in <code>step.value</code> and
+        defaulting to <code>"search"</code>:
+      </p>
+
+<pre class="web"><code>await handle.executeScript('mobile: performEditorAction', { action });</code></pre>
+
+      <div class="note warn">
+        <span class="note-label">Do not reach for hideKeyboard</span>
+        <p>
+          Appium's <code>hideKeyboard</code> presses Back on Android. On a WebView screen that
+          navigates out of the page entirely — it blanked Transaction History mid-test. The same rule
+          applies to closing popups: always tap the app's own close control, never Back, which
+          reaches the app root and raises an "Exit?" confirmation.
+        </p>
+      </div>
+
+      <h3>Trap 5 — clearing needs its own action</h3>
+
+      <p>
+        Typing an empty string is a no-op, so resetting a search box between queries could not be
+        expressed at all. <code>clear</code> was added as a distinct action calling
+        <code>clearValue()</code>, which meant threading it through the driver interface, the
+        WebdriverIO session handle and its adapter. The test then hard-asserts the result with a
+        <code>verify_text</code> against the placeholder, rather than trusting the clear silently
+        worked.
+      </p>
+
+      <h3>Trap 6 — the accessibility tree walk hangs on nested WebViews</h3>
+
+      <p>
+        UiAutomator2's default tree walk can stall for 10&nbsp;s+ per command, eventually never
+        recovering, on screens with deeply nested or overlapping WebViews — a popup opened on top of
+        another popup. One capability setting resolves it, applied to every session:
+      </p>
+
+<pre class="native"><code>'appium:settings[enforceXPath1]': true,
+'appium:adbExecTimeout': 60_000,  <span class="cmt">// 20s default is too tight under real load</span>
+'appium:noReset': true,</code></pre>
+
+      <h3>Trap 7 — WebView page loads outrun the capture</h3>
+
+      <p>
+        A native transition settles well under a second. A WebView-hosted form can still be
+        mid-navigation, loading over the previous screen, long after the tap that opened it returned
+        — an immediate capture caught the old login screen still fading out underneath the new page.
+        The crawler therefore treats the two differently: a flat 500&nbsp;ms settle for native
+        transitions, and for WebView forms a re-capture loop that continues until the screen
+        signature stops changing between consecutive attempts.
+      </p>
+      <p>
+        The same asymmetry shows up in assertions. <code>verify_element_exists</code> is an
+        instantaneous check with no implicit wait, and on a congested network a sign-in has been
+        observed still spinning ten seconds after submit — so post-login assertions are written as
+        retry loops with real slack rather than a single optimistic check.
+      </p>
+
+      <h3>Trap 8 — WebView markup produces overlapping duplicate fields</h3>
+
+      <p>
+        The sign-up form's "Mobile Number" row renders as <em>two</em> overlapping
+        <code>EditText</code> nodes 27&nbsp;px apart — one with a resource id, one without — where
+        genuinely distinct rows sit 130&nbsp;px+ apart. The generator collapses any two fields whose
+        vertical centres fall within 60&nbsp;px into a single logical field, so it does not emit two
+        typing steps for one input.
+      </p>
+
+      <h3>Trap 9 — several scrollable containers, one of them 2px tall</h3>
+
+      <p>
+        The drawer screen exposes three scrollable containers: the drawer list, a top-navigation
+        <code>GridView</code>, and a 2&nbsp;px-tall WebView strip. An unscoped
+        <code>new UiSelector().scrollable(true)</code> picks whichever the tree yields first, which
+        may scroll nothing at all. Every scroll expression names its container explicitly:
+      </p>
+
+<pre class="web"><code>new UiScrollable(new UiSelector().resourceId("…:id/leftNavigationItems"))
+  .setMaxSearchSwipes(12)
+  .scrollIntoView(new UiSelector().resourceId("…:id/navTitle").text("Log Out"))</code></pre>
+
+      <h3>Trap 10 — <code>back()</code> only partially closes a WebView popup</h3>
+
+      <p>
+        During crawling, a single back press left a WebView sign-up popup open. The crawler then
+        tapped the home screen's cached Login button on top of it, stacking a second popup and
+        hanging the accessibility service. Every dismissal is now re-verified by re-capturing and
+        comparing the screen signature, retrying up to three times, rather than assuming one
+        recognized close tap was enough.
+      </p>
+
+      <h3>The coordinate escape hatch</h3>
+
+      <p>
+        Underneath all of this sits the last-resort strategy. A WebView-hosted field's resource id
+        can be an ephemeral id the accessibility tree assigns fresh per page load rather than a
+        stable Android view id, so tree-based lookup can fail even though the field is visibly
+        present. The <code>coordinates</code> locator taps its captured bounds centre via
+        <code>mobile: clickGesture</code> and then types into whatever has focus — no element lookup
+        involved. It is deliberately last: it survives a flaky tree but not a moved element.
+      </p>
+    </section>
+
+    <!-- 08 -->
+    <section id="parallel">
+      <h2><span class="num">08</span> Parallel execution</h2>
+
+      <p>
+        Playwright parallelizes by opening many cheap isolated browser contexts in one process. A
+        phone has one foreground app and one screen, so there is no equivalent — <strong>the device
+        is the unit of parallelism</strong>, and <code>tools/run-parallel.js</code> runs one worker
+        per device.
+      </p>
+
+      <p>Each worker needs three things of its own, and all three are failure modes if shared:</p>
+
+      <div class="scroller">
+        <table>
+          <thead><tr><th>Resource</th><th>Mechanism</th><th>If shared</th></tr></thead>
+          <tbody>
+            <tr><td>Appium server port</td><td><code>APPIUM_PORT</code>, from 4723</td>
+                <td>Sessions collide on one server.</td></tr>
+            <tr><td>UiAutomator2 systemPort</td><td><code>APPIUM_SYSTEMPORT</code>, from 8200</td>
+                <td>The second worker fails to bind and tears down the bridge the first is already using.</td></tr>
+            <tr><td>Test account</td><td><code>deviceAccounts</code> map</td>
+                <td>Workers log each other out mid-suite.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <span class="note-label">The env-var naming trap</span>
+        <p>
+          <code>EnvConfigProvider</code> maps a dot-path config key to an env var by upper-casing and
+          removing the dots — so <code>appium.systemPort</code> becomes
+          <code>APPIUM_SYSTEMPORT</code>, <em>not</em> <code>APPIUM_SYSTEM_PORT</code>. Setting the
+          plausible-looking name silently does nothing: both workers took 8200, and the first run of
+          the parallel runner failed on both devices at once. Values also arrive as strings and need
+          an explicit <code>Number()</code> before reaching the capability.
+        </p>
+      </div>
+
+      <p>
+        Devices are verified present over adb and every account assignment is checked before anything
+        launches, so a misconfigured run fails in seconds rather than mid-suite. Device resets run
+        sequentially even though the suites run concurrently — the reset script hardcodes port 4723
+        and sets no systemPort, so concurrent resets would collide on 8200.
+      </p>
+
+<pre><code>node tools/run-parallel.js --package com.betwayafrica.za --module manual \
+  --run &lt;deviceA-serial&gt;=&lt;hamburger-tour-id&gt; \
+  --run &lt;deviceB-serial&gt;=&lt;my-bets-id&gt;,&lt;transaction-history-id&gt;</code></pre>
+
+      <p>
+        Measured on the most recent two-device run: <strong>547&nbsp;s wall clock against roughly
+        725&nbsp;s sequential.</strong> The speedup is bounded by the slowest single device, not by
+        total work — the hamburger tour alone accounts for the full 547&nbsp;s.
+      </p>
+    </section>
+
+    <!-- 09 -->
+    <section id="safety">
+      <h2><span class="num">09</span> Safety model</h2>
+
+      <p>
+        The platform drives a real betting app signed in to real accounts holding real balances.
+        Several mechanisms exist purely to constrain what it can do.
+      </p>
+
+      <h4>Real-money screens are refused, not navigated</h4>
+      <p>
+        <code>isSensitiveFinancialElement</code> recognizes deposit, withdrawal, voucher and payment
+        surfaces. Two independent paths check it. Overlay dismissal re-captures after its tap and
+        backs out if it landed somewhere sensitive; locator healing refuses <em>every</em> strategy —
+        coordinate self-heal, fingerprint match and AI fallback alike — the instant it detects one.
+        The safe response is always to fail the step rather than guess at an interaction.
+      </p>
+      <div class="note warn">
+        <span class="note-label">Why both guards exist</span>
+        <p>
+          An overlay-dismissal tap once landed on an unrelated element that cascaded into a Deposit
+          Funds screen. The very next assertion passed anyway, because it targeted a header present on
+          almost every screen — masking the drift until a later coordinate-healing fallback typed a
+          cached password into a Voucher Pin field. Checking after the dismissal catches the drift at
+          its source; refusing to heal catches it if anything still gets through.
+        </p>
+      </div>
+
+      <h4>Standing constraints</h4>
+      <ul>
+        <li>Real credentials never enter version control. <code>config/test-accounts.json</code> is
+        gitignored; the committed example holds placeholders only. The Gemini key lives only in
+        <code>.env</code>.</li>
+        <li>Generated test cases and run artifacts are gitignored — they show balances and bet
+        history.</li>
+        <li>Test cases never type into or submit real-money fields. Deposit, Withdraw, Change
+        Password, Update Details, Promo Voucher and Responsible Gaming screens are opened and
+        screenshotted only.</li>
+        <li>The biometric enrolment prompt is always <em>Skipped</em>, never Allowed, on a real
+        account.</li>
+        <li>Never use Back to close a popup or screen — tap the app's own close control.</li>
+        <li>Logs are redacted; resolved credentials are never printed, and credential errors never
+        include the resolved value.</li>
+      </ul>
+      <p>
+        One deliberate exception: the overlay-recovery path still falls back to <code>back()</code>
+        when it finds no recognizable close control on a suspected real-money screen, capped at a
+        fixed number of escapes per run. Getting off that screen outweighs the general rule, and the
+        cap stops it wandering.
+      </p>
+    </section>
+
+    <!-- 10 -->
+    <section id="status">
+      <h2><span class="num">10</span> Status &amp; known gaps</h2>
+
+      <div class="status-grid">
+        <div class="status-cell">
+          <div class="k">Unit tests</div>
+          <div class="v pass">683 / 683</div>
+          <div class="sub">77 suites. Lint, format and build clean.</div>
+        </div>
+        <div class="status-cell">
+          <div class="k">Hamburger tour</div>
+          <div class="v pass">331 / 331</div>
+          <div class="sub">Two consecutive full passes, 19 checkpoints.</div>
+        </div>
+        <div class="status-cell">
+          <div class="k">My Bets</div>
+          <div class="v pass">Passing</div>
+          <div class="sub">39 steps, both accounts.</div>
+        </div>
+        <div class="status-cell">
+          <div class="k">Transaction History</div>
+          <div class="v">Account-bound</div>
+          <div class="sub">71 steps. Passes on account 1 only.</div>
+        </div>
+      </div>
+
+      <h4>Open items</h4>
+      <ul>
+        <li><strong>Transaction History is coupled to one account's data.</strong> It searches a
+        hardcoded transaction id that exists only on account 1, so it fails on the second device with
+        "No transactions were found" — the search mechanism works, the fixture does not. Fix is
+        either a per-account id resolved through the same templating that handles credentials, or a
+        negative-search assertion that proves the filter runs on any account.</li>
+        <li><strong>Three older auto-generated test cases still embed literal credentials</strong>
+        (<code>39fcb671</code>, <code>6809c350</code>, <code>7a3f70d0</code>) and always run as the
+        default account. Regenerating them would bring them onto the placeholder mechanism.</li>
+        <li><strong><code>docs/ARCHITECTURE.md</code> is a pre-implementation draft</strong> and no
+        longer matches the built system — it describes folders and classes that were renamed or never
+        created. This document supersedes it; the committed README is also stale.</li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    Every WebView behaviour described in §7 was diagnosed against physical devices running the
+    production app, not inferred from documentation.
+  </footer>
+
+</div>

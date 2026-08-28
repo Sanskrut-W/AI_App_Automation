@@ -10,6 +10,8 @@ import { ScreenCaptureError } from '../../core/errors/ScreenCaptureError';
 import { TapError } from '../../core/errors/TapError';
 import { NavigationError } from '../../core/errors/NavigationError';
 import { SendKeysError } from '../../core/errors/SendKeysError';
+import { ClearTextError } from '../../core/errors/ClearTextError';
+import { ImeActionError } from '../../core/errors/ImeActionError';
 import { ScrollError } from '../../core/errors/ScrollError';
 import { SwipeError } from '../../core/errors/SwipeError';
 import { GetTextError } from '../../core/errors/GetTextError';
@@ -217,13 +219,57 @@ export class AndroidAppiumDriver implements IAppiumDriver, ICaptureDriver, IInte
         await handle.executeScript('mobile: type', { text: value });
       } else {
         const element = await handle.findElement(this.toSelector(locator));
-        await element.setValue(value);
+        try {
+          await element.setValue(value);
+        } catch (setValueError) {
+          // setValue asks the accessibility layer to set the element's text, and a WebView-hosted
+          // input can advertise the wrong action for that — Betway ZA's transaction-history search
+          // box reports ACTION_SET_PROGRESS (as though it were a slider) and rejects the call, even
+          // though it takes ordinary keystrokes perfectly well. Focus it and type instead: the same
+          // route the COORDINATES branch above takes, but still located properly by the accessibility
+          // tree, so the step stays portable across devices and screen sizes.
+          this.logger.warn('setValue rejected by the element; focusing it and typing instead', {
+            strategy: locator.strategy,
+            value: locator.value,
+            reason: this.describe(setValueError),
+          });
+          await element.click();
+          await handle.executeScript('mobile: type', { text: value });
+        }
       }
       this.logger.info('Typed into element', { strategy: locator.strategy, value: locator.value });
     } catch (error) {
       throw new SendKeysError(
         `Failed to type into element (${locator.strategy}="${locator.value}"): ${this.describe(error)}`,
       );
+    }
+  }
+
+  async clearText(locator: ElementLocator): Promise<void> {
+    const handle = this.requireActiveSession();
+    this.logger.info('Clearing element text', { strategy: locator.strategy, value: locator.value });
+    try {
+      const element = await handle.findElement(this.toSelector(locator));
+      await element.clearValue();
+      this.logger.info('Cleared element text', {
+        strategy: locator.strategy,
+        value: locator.value,
+      });
+    } catch (error) {
+      throw new ClearTextError(
+        `Failed to clear element (${locator.strategy}="${locator.value}"): ${this.describe(error)}`,
+      );
+    }
+  }
+
+  async pressImeAction(action: string): Promise<void> {
+    const handle = this.requireActiveSession();
+    this.logger.info('Pressing IME action', { action });
+    try {
+      await handle.executeScript('mobile: performEditorAction', { action });
+      this.logger.info('Pressed IME action', { action });
+    } catch (error) {
+      throw new ImeActionError(`Failed to press IME action "${action}": ${this.describe(error)}`);
     }
   }
 

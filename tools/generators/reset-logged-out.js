@@ -21,7 +21,11 @@ if (!DEVICE) throw new Error('usage: node reset-logged-out.js <deviceSerial>');
 
 const PKG = 'com.betwayafrica.za';
 const SCROLL_INTO_VIEW = (text) =>
-  `new UiScrollable(new UiSelector().resourceId("${PKG}:id/leftNavigationItems")).scrollIntoView(new UiSelector().text("${text}"))`;
+  `new UiScrollable(new UiSelector().resourceId("${PKG}:id/leftNavigationItems")).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("${text}"))`;
+/** A drawer row, matched on its own navTitle id — drawer labels are duplicated elsewhere on
+ *  screen, and only navTitle is unique to the drawer. */
+const NAV_ROW = (label) =>
+  `//android.widget.TextView[@resource-id="${PKG}:id/navTitle" and @text="${label}"]`;
 
 async function tapIfPresent(driver, selector, label) {
   const el = await driver.$(selector);
@@ -59,7 +63,7 @@ async function main() {
     // schedule and can be stacked.
     for (let pass = 0; pass < 3; pass += 1) {
       await tapIfPresent(driver, `id=${PKG}:id/biometricSkip`, 'Biometric Setup');
-      await tapIfPresent(driver, 'id=modal-close-btn', 'promo / alert popup');
+      await tapIfPresent(driver, '//*[@resource-id="modal-close-btn"]', 'promo / alert popup');
       await tapIfPresent(driver, '//*[@text="Cancel"]', 'Exit Betway dialog');
       await driver.pause(800);
     }
@@ -142,13 +146,21 @@ async function main() {
     // Scope the scroll to the drawer's own ExpandableListView: this screen has three scrollable
     // containers (the drawer list, the top-nav GridView, and a 2px WebView strip), and an
     // unscoped scrollable(true) can pick the wrong one.
-    const logout = await driver.$(`android=${SCROLL_INTO_VIEW('Log Out')}`);
-    await logout.waitForExist({ timeout: 25000 });
+    // Scroll first, then click the row itself. Do NOT click the element the scrollIntoView
+    // expression returns: UiScrollable hands back the *scrollable container*, not the row it
+    // matched, so clicking it taps the middle of the drawer list. That silently closed the drawer
+    // while leaving the session signed in (observed twice in a row on the S21 Ultra, after an
+    // earlier run had happened to work because of where the list was already scrolled).
+    const scrolled = await driver.$(`android=${SCROLL_INTO_VIEW('Log Out')}`);
+    await scrolled.waitForExist({ timeout: 25000 });
+    await driver.pause(600);
+    const logout = await driver.$(NAV_ROW('Log Out'));
+    await logout.waitForExist({ timeout: 10000 });
     await logout.click();
     await driver.pause(3000);
 
     for (let pass = 0; pass < 2; pass += 1) {
-      await tapIfPresent(driver, 'id=modal-close-btn', 'post-logout popup');
+      await tapIfPresent(driver, '//*[@resource-id="modal-close-btn"]', 'post-logout popup');
       await driver.pause(600);
     }
 

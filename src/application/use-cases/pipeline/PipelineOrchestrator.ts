@@ -159,12 +159,15 @@ export class PipelineOrchestrator implements IPipelineOrchestrator {
             'Run the full pipeline for this app at least once first.',
         );
       }
-      if (
-        request.testCaseId &&
-        !storedTestCases.some((testCase) => testCase.testCaseId === request.testCaseId)
-      ) {
+      // Check every requested id up front: a typo in the second of three would otherwise only
+      // surface after the first has already run against the app.
+      const missing = (request.testCaseIds ?? []).filter(
+        (id) => !storedTestCases.some((testCase) => testCase.testCaseId === id),
+      );
+      if (missing.length > 0) {
         throw new Error(
-          `Test case "${request.testCaseId}" was not found in "${request.packageName}" module "${request.module}".`,
+          `Test case(s) ${missing.map((id) => `"${id}"`).join(', ')} were not found in ` +
+            `"${request.packageName}" module "${request.module}".`,
         );
       }
 
@@ -172,7 +175,7 @@ export class PipelineOrchestrator implements IPipelineOrchestrator {
         await moduleServices.testExecutionEngine.execute({
           deviceId,
           appPackage: request.packageName,
-          testCaseIds: request.testCaseId ? [request.testCaseId] : undefined,
+          testCaseIds: request.testCaseIds?.length ? request.testCaseIds : undefined,
         }),
         'Test execution',
       );

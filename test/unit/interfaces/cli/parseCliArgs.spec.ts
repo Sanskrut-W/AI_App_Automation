@@ -153,8 +153,44 @@ describe('parseCliArgs', () => {
 
       expect(args).toMatchObject({
         mode: 'execute',
-        testCaseId: '11d89f37-072f-4d99-904a-5e374b46cfe8',
+        testCaseIds: ['11d89f37-072f-4d99-904a-5e374b46cfe8'],
       });
+    });
+
+    it('collects repeated --test-case-id flags in the order given, to run several back-to-back', () => {
+      const args = parseCliArgs([
+        '--execute-only',
+        '--package',
+        'com.example.app',
+        '--module',
+        'manual',
+        '--test-case-id',
+        'first-case',
+        '--test-case-id',
+        'second-case',
+        '--device',
+        'emulator-5554',
+      ]);
+
+      expect(args).toMatchObject({
+        mode: 'execute',
+        testCaseIds: ['first-case', 'second-case'],
+      });
+    });
+
+    it('leaves testCaseIds undefined when no --test-case-id is given, so the whole module runs', () => {
+      const args = parseCliArgs([
+        '--execute-only',
+        '--package',
+        'com.example.app',
+        '--module',
+        'manual',
+        '--device',
+        'emulator-5554',
+      ]);
+
+      expect(args).toMatchObject({ mode: 'execute' });
+      expect((args as { testCaseIds?: string[] }).testCaseIds).toBeUndefined();
     });
 
     it('parses --module login', () => {

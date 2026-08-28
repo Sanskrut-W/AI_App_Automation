@@ -1,6 +1,7 @@
 import path from 'path';
 import { TestCase } from '../../../core/entities/TestCase';
 import { TestStep } from '../../../core/value-objects/TestStep';
+import { TestAccount } from '../../../core/value-objects/TestAccount';
 import { TestCaseStatus } from '../../../core/enums/TestCaseStatus';
 import { StepStatus } from '../../../core/enums/StepStatus';
 import { TestExecutionError } from '../../../core/errors/TestExecutionError';
@@ -15,6 +16,7 @@ import { TestExecutionRequest } from '../../dto/TestExecutionRequest';
 import { TestExecutionSummary } from '../../dto/TestExecutionSummary';
 import { TestCaseResult } from '../../dto/TestCaseResult';
 import { StepResult } from '../../dto/StepResult';
+import { resolveCredentialTokens } from './resolveCredentialTokens';
 import { ITestStepExecutor } from './ITestStepExecutor';
 import { ITestExecutionEngine } from './ITestExecutionEngine';
 
@@ -55,8 +57,15 @@ export class TestExecutionEngine implements ITestExecutionEngine {
     });
 
     try {
-      const testCases = await this.resolveTestCases(request.testCaseIds);
-      const logoutSteps = await this.resolveLogoutSteps(request.appPackage);
+      // Resolve credentials before the session opens: the account is chosen per device (so two
+      // devices can run at once as different users), and an unresolved placeholder must abort the
+      // run rather than get typed into a real login form. See resolveCredentialTokens.
+      const account = await this.resolveAccount(request.appPackage, request.deviceId);
+      const testCases = (await this.resolveTestCases(request.testCaseIds)).map(
+        (testCase) =>
+          new TestCase({ ...testCase, steps: resolveCredentialTokens(testCase.steps, account) }),
+      );
+      const logoutSteps = this.resolveLogoutSteps(account);
 
       await this.appiumDriver.createSession({
         deviceId: request.deviceId,
@@ -154,12 +163,18 @@ export class TestExecutionEngine implements ITestExecutionEngine {
     };
   }
 
-  private async resolveLogoutSteps(appPackage: string): Promise<TestStep[] | null> {
+  private async resolveAccount(appPackage: string, deviceId: string): Promise<TestAccount | null> {
     if (!this.testAccountRepository) {
       return null;
     }
-    const account = await this.testAccountRepository.findByPackageName(appPackage);
-    return account?.logoutSteps && account.logoutSteps.length > 0 ? account.logoutSteps : null;
+    return this.testAccountRepository.findByPackageName(appPackage, deviceId);
+  }
+
+  private resolveLogoutSteps(account: TestAccount | null): TestStep[] | null {
+    if (!account?.logoutSteps || account.logoutSteps.length === 0) {
+      return null;
+    }
+    return resolveCredentialTokens(account.logoutSteps, account);
   }
 
   /**

@@ -3,6 +3,13 @@ import { CreateSessionOptions } from '../../application/dto/CreateSessionOptions
 
 /** The single place Android/UiAutomator2 desired capabilities are shaped — nothing else builds them. */
 export class AndroidCapabilitiesBuilder implements ICapabilitiesBuilder {
+  /**
+   * @param baseCapabilities Extra capabilities applied to every session, below any per-session
+   * override. Used for host-level settings that vary per worker rather than per test — chiefly
+   * "appium:systemPort" when several devices are driven at once (see below).
+   */
+  constructor(private readonly baseCapabilities: Record<string, unknown> = {}) {}
+
   build(options: CreateSessionOptions): Record<string, unknown> {
     const capabilities: Record<string, unknown> = {
       platformName: 'Android',
@@ -27,6 +34,6 @@ export class AndroidCapabilitiesBuilder implements ICapabilitiesBuilder {
       capabilities['appium:appActivity'] = options.appActivity;
     }
 
-    return { ...capabilities, ...options.capabilityOverrides };
+    return { ...capabilities, ...this.baseCapabilities, ...options.capabilityOverrides };
   }
 }

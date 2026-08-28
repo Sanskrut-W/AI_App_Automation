@@ -1,7 +1,25 @@
 {
   "com.betwayafrica.za": {
+    "_comment_default": "The default account, used when the device running has no assignment below. A single-device setup needs nothing more than these two fields plus logoutSteps.",
     "mobileNumber": "<TEST_ACCOUNT_MOBILE_NUMBER>",
     "password": "<TEST_ACCOUNT_PASSWORD>",
+
+    "_comment_parallel": "Only needed to run several devices AT THE SAME TIME. Each device must sign in as a different account: sharing one account across concurrent runs means they read each other's balance and bet history, and the app may invalidate the first session when the second logs in. Enter the mobile number the way the login field takes it - Betway ZA shows a fixed '+27' prefix beside the field, so it wants the local 9 digits, not the 27... form.",
+    "accounts": {
+      "<ACCOUNT_ID_A>": {
+        "mobileNumber": "<TEST_ACCOUNT_A_MOBILE_NUMBER>",
+        "password": "<TEST_ACCOUNT_A_PASSWORD>"
+      },
+      "<ACCOUNT_ID_B>": {
+        "mobileNumber": "<TEST_ACCOUNT_B_MOBILE_NUMBER>",
+        "password": "<TEST_ACCOUNT_B_PASSWORD>"
+      }
+    },
+    "deviceAccounts": {
+      "<ADB_SERIAL_OF_DEVICE_A>": "<ACCOUNT_ID_A>",
+      "<ADB_SERIAL_OF_DEVICE_B>": "<ACCOUNT_ID_B>"
+    },
+
     "logoutSteps": [
       {
         "stepNumber": 1,

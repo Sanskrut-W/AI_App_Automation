@@ -322,7 +322,12 @@ describe('TestExecutionEngine', () => {
       expect(summary.results.map((r) => r.testCaseId)).toEqual(['test-case-1', 'test-case-2']);
       // 2 steps per test case + 2 logout steps run after each of the 2 test cases = 8 calls.
       expect(mocks.stepExecutor.execute).toHaveBeenCalledTimes(8);
-      expect(accountRepository.findByPackageName).toHaveBeenCalledWith('com.example.app');
+      // The device is passed too: it selects which account this device signs in as, so several
+      // devices can run at once as different users.
+      expect(accountRepository.findByPackageName).toHaveBeenCalledWith(
+        'com.example.app',
+        'emulator-5554',
+      );
     });
 
     it('stops the teardown at its first failed step (the "logged in?" gate) without touching the test case result', async () => {

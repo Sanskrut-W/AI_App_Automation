@@ -11,6 +11,7 @@ function createFakeBrowser() {
     click: jest.fn().mockResolvedValue(undefined),
     getText: jest.fn().mockResolvedValue('some text'),
     setValue: jest.fn().mockResolvedValue(undefined),
+    clearValue: jest.fn().mockResolvedValue(undefined),
   };
   return {
     sessionId: 'abc-123',

@@ -88,6 +88,8 @@ function createMocks() {
     tap: jest.fn().mockResolvedValue(undefined),
     back: jest.fn().mockResolvedValue(undefined),
     sendKeys: jest.fn().mockResolvedValue(undefined),
+    clearText: jest.fn().mockResolvedValue(undefined),
+    pressImeAction: jest.fn().mockResolvedValue(undefined),
     scroll: jest.fn().mockResolvedValue(undefined),
     swipe: jest.fn().mockResolvedValue(undefined),
     getText: jest.fn().mockResolvedValue(''),

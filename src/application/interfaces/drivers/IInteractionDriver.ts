@@ -9,6 +9,14 @@ export interface IInteractionDriver {
   tap(locator: ElementLocator): Promise<void>;
   back(): Promise<void>;
   sendKeys(locator: ElementLocator, value: string): Promise<void>;
+  /** Empties a text field, e.g. to reset a search box between queries. */
+  clearText(locator: ElementLocator): Promise<void>;
+  /**
+   * Fires the on-screen keyboard's action key ("search", "go", "done", "next", "send", "previous")
+   * against whatever field currently has focus. Needed for inputs that only apply their value when
+   * the IME action is used rather than on each keystroke — a WebView search box, typically.
+   */
+  pressImeAction(action: string): Promise<void>;
   scroll(direction: ScrollDirection): Promise<void>;
   /** Raw two-point drag gesture (no widget/locator involved) — for scrollable content the
    * generic scroll() can't reliably reach, e.g. a nested list inside a drawer/popup. */

@@ -8,28 +8,47 @@ const OUT_PATH = path.join(
   '105c7000-c5d5-41a9-a7ba-5c5d1dc08cf6.json',
 );
 
-/** Read from config rather than hardcoded, so real credentials live in one gitignored file. */
-function loadAccount(packageName) {
-  const configPath = path.join(REPO_ROOT, 'config', 'test-accounts.json');
-  if (!fs.existsSync(configPath)) {
-    throw new Error(
-      `Missing ${configPath}. Copy config/test-accounts.example.json to config/test-accounts.json and fill in your test account.`,
-    );
-  }
-  const account = JSON.parse(fs.readFileSync(configPath, 'utf8'))[packageName];
-  if (!account?.mobileNumber || !account?.password) {
-    throw new Error(`config/test-accounts.json has no mobileNumber/password for ${packageName}.`);
-  }
-  return { mobile: account.mobileNumber, password: account.password };
-}
-
-const ACCOUNT = loadAccount('com.betwayafrica.za');
+/**
+ * Credentials are emitted as placeholders, resolved at execution time against the test account
+ * assigned to the device being driven (see src/application/use-cases/test-execution/
+ * resolveCredentialTokens.ts). Two consequences worth having: one test case can run on several
+ * devices at once signed in as different accounts, and the generated JSON holds no password.
+ */
+const CREDENTIAL = {
+  mobileNumber: '{{account.mobileNumber}}',
+  password: '{{account.password}}',
+};
 
 const steps = [];
 let n = 0;
 function push(step) {
   n += 1;
   steps.push({ stepNumber: n, ...step });
+}
+
+const HAMBURGER = { strategy: 'accessibility-id', value: 'Open' };
+const DRAWER_LIST = { strategy: 'resource-id', value: 'com.betwayafrica.za:id/leftNavigationItems' };
+
+/**
+ * Opens the drawer, tolerating a tap that doesn't take.
+ *
+ * One tap plus a fixed wait is not enough: if a WebView popup's scrim is still up the tap is
+ * swallowed, and the open animation can outlast the pause. That is how the tour died on Betway
+ * Rewards — 13 items in, still logged in, but the drawer simply wasn't open, so the row it wanted
+ * did not exist.
+ *
+ * The retry is safe precisely because it targets content-desc "Open": the hamburger's description
+ * flips to "Close" once the drawer is open, so the locator stops matching and the optional retry
+ * becomes a no-op. When the drawer did not open, "Open" is still there and the tap happens again.
+ * The closing assertion is on the drawer's own list, which is the thing later steps actually need.
+ */
+function pushOpenDrawer() {
+  push({ action: 'verify_element_exists', targetLocator: HAMBURGER, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu button is present.' });
+  push({ action: 'click', targetLocator: HAMBURGER, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu drawer opens.' });
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'The drawer finishes opening.' });
+  push({ action: 'click', targetLocator: HAMBURGER, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'Retries the hamburger only if the drawer did not open — once it is open the button reads "Close", so this locator no longer matches and the step is a no-op.', optional: true });
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'Any retried open animation finishes.' });
+  push({ action: 'verify_element_exists', targetLocator: DRAWER_LIST, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer list is present, so the menu really is open before anything looks for a row in it.' });
 }
 
 // Screenshots are captured ONLY for steps carrying a `screenshotLabel` (plus any step that fails,
@@ -42,10 +61,10 @@ push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id'
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/toolbarLogin' }, elementId: 'a4d4b54e-744a-41e7-b9cf-d381e2dc083a', value: null, direction: null, durationMs: null, expectedResult: 'Login form opens.' });
 push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginMobileNumber' }, elementId: '549066c7-cf9f-414c-909c-6716318b2f79', value: null, direction: null, durationMs: null, expectedResult: 'The mobile number input is present.' });
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginMobileNumber' }, elementId: '549066c7-cf9f-414c-909c-6716318b2f79', value: null, direction: null, durationMs: null, expectedResult: 'The mobile number input gains focus.' });
-push({ action: 'type', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginMobileNumber' }, elementId: '549066c7-cf9f-414c-909c-6716318b2f79', value: ACCOUNT.mobile, direction: null, durationMs: null, expectedResult: 'The mobile number is entered.' });
+push({ action: 'type', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginMobileNumber' }, elementId: '549066c7-cf9f-414c-909c-6716318b2f79', value: CREDENTIAL.mobileNumber, direction: null, durationMs: null, expectedResult: 'The mobile number is entered.' });
 push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/passwordInput' }, elementId: '2595a931-60c7-4c35-913c-289dca56db44', value: null, direction: null, durationMs: null, expectedResult: 'The password input is present.' });
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/passwordInput' }, elementId: '2595a931-60c7-4c35-913c-289dca56db44', value: null, direction: null, durationMs: null, expectedResult: 'The password input gains focus.' });
-push({ action: 'type', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/passwordInput' }, elementId: '2595a931-60c7-4c35-913c-289dca56db44', value: ACCOUNT.password, direction: null, durationMs: null, expectedResult: 'The password is entered.' });
+push({ action: 'type', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/passwordInput' }, elementId: '2595a931-60c7-4c35-913c-289dca56db44', value: CREDENTIAL.password, direction: null, durationMs: null, expectedResult: 'The password is entered.' });
 push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginSignIn' }, elementId: '84afc273-24e0-4d99-b22e-4b65d9df8320', value: null, direction: null, durationMs: null, expectedResult: 'The target element is present.' });
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/loginSignIn' }, elementId: '84afc273-24e0-4d99-b22e-4b65d9df8320', value: null, direction: null, durationMs: null, expectedResult: 'user should get logged in' });
 push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2000, expectedResult: 'The login request finishes before the next step checks anything (login is asynchronous).' });
@@ -71,8 +90,12 @@ for (let attempt = 0; attempt < 3; attempt += 1) {
 // layers can be present depending on session state/timing). Tapping it twice here, each optional,
 // clears the run of this before the tour starts, so it isn't mistaken for something the first
 // menu item caused.
+// Matched by xpath rather than the "resource-id" strategy: that strategy maps to Appium's "id"
+// locator, which prefixes a bare id with the app package, so it can never resolve a WebView id
+// with no package part. Verified live — `id=modal-close-btn` does not resolve where this xpath
+// does. Because these steps are optional, the mismatch was silently passing as a no-op.
 for (let i = 0; i < 2; i += 1) {
-  push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'modal-close-btn' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'If a post-login Withdrawal Alert popup layer is present, it closes; otherwise this step is a no-op.', optional: true });
+  push({ action: 'click', targetLocator: { strategy: 'xpath-text', value: '//*[@resource-id="modal-close-btn"]' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'If a post-login Withdrawal Alert popup layer is present, it closes; otherwise this step is a no-op.', optional: true });
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 800, expectedResult: 'Any popup dismissal settles.' });
 }
 
@@ -115,9 +138,7 @@ const ITEMS = [
 // Live Chat has its own resource-id locator (not ambiguous xpath-text), handled separately below.
 
 for (const { label } of ITEMS) {
-  push({ action: 'verify_element_exists', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu button is present.' });
-  push({ action: 'click', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu drawer opens.' });
-  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The drawer finishes opening.' });
+  pushOpenDrawer();
 
   // Scroll the row into view on-device rather than issuing a fixed number of blind swipes: the
   // list is virtualized, so a row that hasn't been scrolled near the viewport doesn't exist in the
@@ -126,9 +147,23 @@ for (const { label } of ITEMS) {
   // recalibration only moved which item failed. scrollIntoView keeps swiping until the row is
   // actually there, so it needs no per-device tuning. Marked optional because items already
   // visible without scrolling make this a no-op on taller screens.
+  // Two separate scopings here, both load-bearing:
+  //
+  // 1. The CONTAINER is the drawer's own ExpandableListView, not a bare scrollable(true) — this
+  //    screen has three scrollable containers (the drawer list, the top-nav GridView and a 2px
+  //    WebView strip) and an unscoped selector can pick the wrong one and scroll nothing.
+  //
+  // 2. The SEARCH selector is scoped to the row's own navTitle id, not bare text. Without it,
+  //    UiScrollable stops as soon as ANY node on screen carries that text — and the All Balances
+  //    panel renders balance rows with the same labels under "balanceTitle". Proven live: with a
+  //    Rewards balance present, scrollIntoView(text("Betway Rewards")) matched the balanceTitle
+  //    node, returned "found" in 1.8s without scrolling a pixel, and the drawer row was never
+  //    rendered — so the tour failed on an item it had reached fine before the account acquired
+  //    that balance. Scoped to navTitle the same call scrolls for 6.1s and lands the real row.
+  //    This is also why the failure looked intermittent: it depends on account state, not the app.
   const scrollLocator = {
     strategy: 'android-uiautomator',
-    value: `new UiScrollable(new UiSelector().scrollable(true)).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().text("${label}"))`,
+    value: `new UiScrollable(new UiSelector().resourceId("com.betwayafrica.za:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("${label}"))`,
   };
   push({ action: 'verify_element_exists', targetLocator: scrollLocator, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `The drawer scrolls until ${label} is rendered, if it wasn't already visible.`, optional: true });
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
@@ -146,39 +181,32 @@ for (const { label } of ITEMS) {
   push({ action: 'verify_element_exists', targetLocator: locator, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `The ${label} option is visible in the hamburger menu.` });
   push({ action: 'click', targetLocator: locator, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Tapping ${label} navigates away from the menu.` });
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2500, expectedResult: `The ${label} screen finishes loading (this step's screenshot is the visual proof it opened).`, screenshotLabel: `Checking ${label}` });
-  push({ action: 'back', targetLocator: null, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Closes the ${label} screen without logging out, returning to the previous tab so the next menu option can be checked.` });
-  // Give any leave-confirmation popup time to actually render before anything looks for it. This
-  // wait is load-bearing: screenshots used to be captured on every step, and that latency was
-  // silently supplying the settle time â€” once capture was reduced to labelled checkpoints only,
-  // the tour ran fast enough that the popup surfaced *after* the dismissal attempts had already
-  // no-opped, and then blocked the next item's drawer.
-  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1200, expectedResult: 'Any leave-confirmation popup has time to render before it is dismissed.' });
-
-  if (label === 'Withdraw Funds') {
-    // Withdraw Funds can show a "Withdrawal Alert" (unused freebet warning) as a WebView popup â€”
-    // sometimes on entry, sometimes intercepting the leave via back() above, sometimes not at all
-    // (all three proven live) â€” plus the base Withdraw Funds screen itself renders with its own
-    // WebView close control at nearly the same on-screen spot, sharing the exact same
-    // "modal-close-btn" resource-id. Tapping it twice (each optional, so a run where 0 or 1 of
-    // these layers exists just skips the rest) reliably clears both without ever risking an extra
-    // back() from what might already be a clean tab (which could reach Android's native "Exit
-    // app?" dialog).
-    // Three attempts, each followed by a real settle: the layers dismiss one at a time and the
-    // next one needs time to become tappable (proven live â€” clearing two stacked layers by hand
-    // required a pause between taps, and without it the second tap hit nothing).
-    for (let i = 0; i < 3; i += 1) {
-      push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'modal-close-btn' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Attempt ${i + 1} of 3: if a Withdrawal Alert / Withdraw Funds popup layer is still present, it closes; otherwise this step is a no-op.`, optional: true });
-      push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The dismissed layer disappears and any layer beneath it becomes tappable.' });
-    }
+  // Close the screen with its own X control — never the system Back button.
+  //
+  // Back is the wrong tool twice over. While a popup is still up it gets swallowed, and it then
+  // reaches the app root, where Android's native "Exit Betway?" dialog appears over everything:
+  // that is exactly how this tour died on Withdraw Funds, whose "Withdrawal Alert" (an unused
+  // Bonus/Freebet warning) stays up after the screenshot. The X is the control the app itself
+  // offers for leaving a screen, so it never has to guess at the navigation stack.
+  //
+  // A screen's page-header X carries the same "modal-close-btn" resource-id as a popup's own X, so
+  // repeating the tap peels the layers off in order. Verified live on Withdraw Funds: two such
+  // nodes on entry (the alert's X and the header's X); tap one closed the alert, tap two closed the
+  // screen, leaving the home screen — with no Exit dialog at any point, and the next item's drawer
+  // row reachable afterwards. Each tap is optional, so a screen with fewer layers simply skips the
+  // rest, and each is followed by a real settle because the layers dismiss one at a time and the
+  // one beneath needs time to become tappable.
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1200, expectedResult: `Any popup the ${label} screen raises has time to render before it is closed.` });
+  for (let i = 0; i < 3; i += 1) {
+    push({ action: 'click', targetLocator: { strategy: 'xpath-text', value: '//*[@resource-id="modal-close-btn"]' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Attempt ${i + 1} of 3: closes the topmost remaining layer — a popup if one is up, otherwise the ${label} screen itself; a no-op once everything is closed.`, optional: true });
+    push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The closed layer disappears and any layer beneath it becomes tappable.' });
   }
 
-  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 800, expectedResult: 'The previous screen settles before reopening the menu.' });
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 800, expectedResult: 'The screen underneath settles before the menu is reopened.' });
 }
 
 // --- Live Chat: unique resource-id, no ambiguity, no scroll needed ---
-push({ action: 'verify_element_exists', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu button is present.' });
-push({ action: 'click', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu drawer opens.' });
-push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The drawer finishes opening.' });
+pushOpenDrawer();
 push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/liveChat' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The Live Chat option is visible in the hamburger menu, with no scrolling needed.' });
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/liveChat' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'Tapping Live Chat responds (closes the menu); live chat itself may require support infrastructure not present in this test environment.' });
 push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2500, expectedResult: "Live Chat finishes responding (this step's screenshot is the visual proof).", screenshotLabel: 'Checking Live Chat' });
@@ -191,10 +219,8 @@ push({ action: 'wait', targetLocator: null, elementId: null, value: null, direct
 // same time. The engine's own logout teardown then finds itself already logged out and no-ops,
 // which is safe: its first check is "is toolbarDeposit still present?" and a failure there is
 // logged and swallowed rather than counted against this test case.
-push({ action: 'verify_element_exists', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu button is present.' });
-push({ action: 'click', targetLocator: { strategy: 'accessibility-id', value: 'Open' }, elementId: '95858323-f853-4fcb-8fcd-7ceef6591f91', value: null, direction: null, durationMs: null, expectedResult: 'The hamburger menu drawer opens.' });
-push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The drawer finishes opening.' });
-push({ action: 'verify_element_exists', targetLocator: { strategy: 'android-uiautomator', value: 'new UiScrollable(new UiSelector().scrollable(true)).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().text("Log Out"))' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until Log Out is rendered.', optional: true });
+pushOpenDrawer();
+push({ action: 'verify_element_exists', targetLocator: { strategy: 'android-uiautomator', value: 'new UiScrollable(new UiSelector().resourceId("com.betwayafrica.za:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("Log Out"))' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until Log Out is rendered.', optional: true });
 push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
 
 const logOutLocator = { strategy: 'xpath-text', value: '//android.widget.TextView[@resource-id="com.betwayafrica.za:id/navTitle" and @text="Log Out"]' };

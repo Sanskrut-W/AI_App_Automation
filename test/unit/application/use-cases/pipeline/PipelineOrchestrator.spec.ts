@@ -635,7 +635,7 @@ describe('PipelineOrchestrator', () => {
       expect(services.menuNavigationTestCaseGenerator.generate).not.toHaveBeenCalled();
     });
 
-    it('runs only the requested test case when testCaseId is given, not the whole module', async () => {
+    it('runs only the requested test case when testCaseIds is given, not the whole module', async () => {
       const mocks = createMocks();
       const services = createServices([
         createTestCase({ testCaseId: 'stored-1' }),
@@ -645,7 +645,7 @@ describe('PipelineOrchestrator', () => {
 
       const result = await orchestrator.executeStoredSuite({
         ...EXECUTE_REQUEST,
-        testCaseId: 'stored-2',
+        testCaseIds: ['stored-2'],
       });
 
       expect(result.isOk()).toBe(true);
@@ -656,18 +656,54 @@ describe('PipelineOrchestrator', () => {
       });
     });
 
-    it('fails clearly when the requested testCaseId does not exist in this module', async () => {
+    it('passes several requested test cases through in the order given', async () => {
+      const mocks = createMocks();
+      const services = createServices([
+        createTestCase({ testCaseId: 'stored-1' }),
+        createTestCase({ testCaseId: 'stored-2' }),
+      ]);
+      const orchestrator = createOrchestrator(mocks, services);
+
+      const result = await orchestrator.executeStoredSuite({
+        ...EXECUTE_REQUEST,
+        testCaseIds: ['stored-2', 'stored-1'],
+      });
+
+      expect(result.isOk()).toBe(true);
+      expect(services.hamburgerMenuModule.testExecutionEngine.execute).toHaveBeenCalledWith({
+        deviceId: 'emulator-5554',
+        appPackage: 'com.example.app',
+        testCaseIds: ['stored-2', 'stored-1'],
+      });
+    });
+
+    it('fails clearly when a requested test case does not exist in this module', async () => {
       const mocks = createMocks();
       const services = createServices([createTestCase({ testCaseId: 'stored-1' })]);
       const orchestrator = createOrchestrator(mocks, services);
 
       const result = await orchestrator.executeStoredSuite({
         ...EXECUTE_REQUEST,
-        testCaseId: 'does-not-exist',
+        testCaseIds: ['does-not-exist'],
       });
 
       expect(result.isErr()).toBe(true);
-      expect(result.unwrapErr().message).toMatch(/"does-not-exist" was not found/);
+      expect(result.unwrapErr().message).toMatch(/"does-not-exist" were not found/);
+      expect(services.hamburgerMenuModule.testExecutionEngine.execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects the whole run when only the second requested test case is missing, before executing anything', async () => {
+      const mocks = createMocks();
+      const services = createServices([createTestCase({ testCaseId: 'stored-1' })]);
+      const orchestrator = createOrchestrator(mocks, services);
+
+      const result = await orchestrator.executeStoredSuite({
+        ...EXECUTE_REQUEST,
+        testCaseIds: ['stored-1', 'typo-in-second'],
+      });
+
+      expect(result.isErr()).toBe(true);
+      expect(result.unwrapErr().message).toMatch(/"typo-in-second"/);
       expect(services.hamburgerMenuModule.testExecutionEngine.execute).not.toHaveBeenCalled();
     });
 

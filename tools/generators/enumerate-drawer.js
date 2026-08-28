@@ -87,7 +87,7 @@ async function main() {
       await driver.pause(4000);
       for (let i = 0; i < 3; i += 1) {
         await tapIfPresent(driver, `id=${PKG}:id/biometricSkip`, 'Biometric Setup');
-        await tapIfPresent(driver, 'id=modal-close-btn', 'popup layer');
+        await tapIfPresent(driver, '//*[@resource-id="modal-close-btn"]', 'popup layer');
         await driver.pause(1500);
       }
     }

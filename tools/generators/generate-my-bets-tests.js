@@ -14,22 +14,16 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = path.join(REPO_ROOT, 'artifacts', 'apps', 'com.betwayafrica.za', 'test-cases', 'manual');
 const SCREEN_ID = 'f53e9f8c-0f56-4de0-a195-56d43791fce8';
 
-/** Read from config rather than hardcoded, so real credentials live in one gitignored file. */
-function loadAccount(packageName) {
-  const configPath = path.join(REPO_ROOT, 'config', 'test-accounts.json');
-  if (!fs.existsSync(configPath)) {
-    throw new Error(
-      `Missing ${configPath}. Copy config/test-accounts.example.json to config/test-accounts.json and fill in your test account.`,
-    );
-  }
-  const account = JSON.parse(fs.readFileSync(configPath, 'utf8'))[packageName];
-  if (!account?.mobileNumber || !account?.password) {
-    throw new Error(`config/test-accounts.json has no mobileNumber/password for ${packageName}.`);
-  }
-  return { mobile: account.mobileNumber, password: account.password };
-}
-
-const ACCOUNT = loadAccount('com.betwayafrica.za');
+/**
+ * Credentials are emitted as placeholders, resolved at execution time against the test account
+ * assigned to the device being driven (see src/application/use-cases/test-execution/
+ * resolveCredentialTokens.ts). Two consequences worth having: one test case can run on several
+ * devices at once signed in as different accounts, and the generated JSON holds no password.
+ */
+const CREDENTIAL = {
+  mobileNumber: '{{account.mobileNumber}}',
+  password: '{{account.password}}',
+};
 
 const RES = (id) => ({ strategy: 'resource-id', value: `com.betwayafrica.za:id/${id}` });
 /** A drawer row, matched on its own navTitle id — several drawer labels are duplicated elsewhere
@@ -47,7 +41,7 @@ const WEB_TEXT = (text) => ({
 });
 const DRAWER_SCROLL = (label) => ({
   strategy: 'android-uiautomator',
-  value: `new UiScrollable(new UiSelector().resourceId("com.betwayafrica.za:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().text("${label}"))`,
+  value: `new UiScrollable(new UiSelector().resourceId("com.betwayafrica.za:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("${label}"))`,
 });
 
 function createBuilder() {
@@ -67,10 +61,10 @@ function pushLogin({ push }) {
   push({ action: 'click', targetLocator: RES('toolbarLogin'), expectedResult: 'The login sheet opens.' });
   push({ action: 'verify_element_exists', targetLocator: RES('loginMobileNumber'), expectedResult: 'The mobile number field is present.' });
   push({ action: 'click', targetLocator: RES('loginMobileNumber'), expectedResult: 'The mobile number field gains focus.' });
-  push({ action: 'type', targetLocator: RES('loginMobileNumber'), value: ACCOUNT.mobile, expectedResult: 'The mobile number is entered.' });
+  push({ action: 'type', targetLocator: RES('loginMobileNumber'), value: CREDENTIAL.mobileNumber, expectedResult: 'The mobile number is entered.' });
   push({ action: 'verify_element_exists', targetLocator: RES('passwordInput'), expectedResult: 'The password field is present.' });
   push({ action: 'click', targetLocator: RES('passwordInput'), expectedResult: 'The password field gains focus.' });
-  push({ action: 'type', targetLocator: RES('passwordInput'), value: ACCOUNT.password, expectedResult: 'The password is entered.' });
+  push({ action: 'type', targetLocator: RES('passwordInput'), value: CREDENTIAL.password, expectedResult: 'The password is entered.' });
   push({ action: 'verify_element_exists', targetLocator: RES('loginSignIn'), expectedResult: 'The Log In button is present.' });
   push({ action: 'click', targetLocator: RES('loginSignIn'), expectedResult: 'The sign-in request is submitted.' });
 
@@ -84,9 +78,13 @@ function pushLogin({ push }) {
   }
 
   // A promo interstitial and/or a "Withdrawal Alert" can stack over the toolbar, both under the
-  // same "modal-close-btn" id, with 0, 1 or 2 layers present.
+  // same "modal-close-btn" id, with 0, 1 or 2 layers present. Matched by xpath, not the
+  // "resource-id" strategy: that strategy maps to Appium's "id" locator, which prefixes a bare id
+  // with the app package, so it can never resolve a WebView id that has no package part. Verified
+  // live — `id=modal-close-btn` does not resolve where this xpath does. These steps are optional,
+  // so the mismatch was silently passing as a no-op rather than failing.
   for (let i = 0; i < 2; i += 1) {
-    push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'modal-close-btn' }, optional: true, expectedResult: 'Closes a post-login popup layer if one is present; otherwise a no-op.' });
+    push({ action: 'click', targetLocator: { strategy: 'xpath-text', value: '//*[@resource-id="modal-close-btn"]' }, optional: true, expectedResult: 'Closes a post-login popup layer if one is present; otherwise a no-op.' });
     push({ action: 'wait', durationMs: 800, expectedResult: 'Any popup dismissal settles.' });
   }
 

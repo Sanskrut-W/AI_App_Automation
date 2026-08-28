@@ -34,7 +34,7 @@ export async function runPipelineCommand(argv: string[]): Promise<void> {
     const result = await pipelineOrchestrator.executeStoredSuite({
       packageName: args.packageName,
       module: args.module,
-      testCaseId: args.testCaseId,
+      testCaseIds: args.testCaseIds,
       deviceId: args.deviceId,
       avdName: args.avdName,
       bootTimeoutMs: args.bootTimeoutMs,

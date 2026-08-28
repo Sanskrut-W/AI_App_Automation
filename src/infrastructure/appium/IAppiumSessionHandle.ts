@@ -3,6 +3,8 @@ export interface IAppiumElementHandle {
   click(): Promise<void>;
   getText(): Promise<string>;
   setValue(value: string): Promise<void>;
+  /** Empties a text field. Preferred over typing an empty string, which is a no-op. */
+  clearValue(): Promise<void>;
 }
 
 /**

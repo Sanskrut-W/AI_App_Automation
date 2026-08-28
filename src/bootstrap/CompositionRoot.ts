@@ -112,10 +112,17 @@ export function buildCompositionRoot(
   );
 
   const sessionFactory = new WebdriverIoSessionFactory();
-  const capabilitiesBuilder = new AndroidCapabilitiesBuilder();
+  // UiAutomator2 runs a server on the device and forwards it to this port on the HOST. Two
+  // concurrent sessions that both take the default (8200) fight over it, so a parallel run gives
+  // each worker its own — see tools/run-parallel.js, which sets APPIUM_SYSTEM_PORT per device.
+  const capabilitiesBuilder = new AndroidCapabilitiesBuilder({
+    'appium:systemPort': Number(config.getOrDefault('appium.systemPort', 8200)),
+  });
   const appiumConnection = {
     hostname: config.getOrDefault('appium.hostname', 'localhost'),
-    port: config.getOrDefault('appium.port', 4723),
+    // Number(): env-var overrides arrive as strings (EnvConfigProvider returns process.env
+    // verbatim), and webdriverio needs a real number here.
+    port: Number(config.getOrDefault('appium.port', 4723)),
     path: config.getOrDefault('appium.path', '/'),
     protocol: config.getOrDefault('appium.protocol', 'http'),
   };
