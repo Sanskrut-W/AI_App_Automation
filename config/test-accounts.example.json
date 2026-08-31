@@ -3,7 +3,6 @@
     "_comment_default": "The default account, used when the device running has no assignment below. A single-device setup needs nothing more than these two fields plus logoutSteps.",
     "mobileNumber": "<TEST_ACCOUNT_MOBILE_NUMBER>",
     "password": "<TEST_ACCOUNT_PASSWORD>",
-
     "_comment_parallel": "Only needed to run several devices AT THE SAME TIME. Each device must sign in as a different account: sharing one account across concurrent runs means they read each other's balance and bet history, and the app may invalidate the first session when the second logs in. Enter the mobile number the way the login field takes it - Betway ZA shows a fixed '+27' prefix beside the field, so it wants the local 9 digits, not the 27... form.",
     "accounts": {
       "<ACCOUNT_ID_A>": {
@@ -19,7 +18,6 @@
       "<ADB_SERIAL_OF_DEVICE_A>": "<ACCOUNT_ID_A>",
       "<ADB_SERIAL_OF_DEVICE_B>": "<ACCOUNT_ID_B>"
     },
-
     "logoutSteps": [
       {
         "stepNumber": 1,
@@ -72,13 +70,13 @@
         "action": "verify_element_exists",
         "targetLocator": {
           "strategy": "android-uiautomator",
-          "value": "new UiScrollable(new UiSelector().resourceId(\"com.betwayafrica.za:id/leftNavigationItems\")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().text(\"Log Out\"))"
+          "value": "new UiScrollable(new UiSelector().resourceId(\"com.betwayafrica.za:id/leftNavigationItems\")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId(\"com.betwayafrica.za:id/navTitle\").text(\"Log Out\"))"
         },
         "elementId": null,
         "value": null,
         "direction": null,
         "durationMs": null,
-        "expectedResult": "The drawer scrolls until Log Out is rendered. Replaces two blind swipes: the list is virtualized so an un-scrolled row is absent from the hierarchy entirely, and fling momentum varies per gesture — a fixed swipe count calibrated on one device landed short or long on another. Scoped to the drawer's own list because this screen has three scrollable containers.",
+        "expectedResult": "Scrolls the drawer until the Log Out row materializes. The search selector MUST be scoped to the navTitle id: an unscoped text(\"Log Out\") matches any node carrying that text anywhere on screen and stops instantly without scrolling, so teardown silently fails and leaves the account logged in. Optional because the row may already be in view, and because this existence check reports the scrollable container rather than the row either way.",
         "optional": true
       },
       {

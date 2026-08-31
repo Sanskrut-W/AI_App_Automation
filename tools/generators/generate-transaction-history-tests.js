@@ -20,8 +20,22 @@ const SCREEN_ID = 'f53e9f8c-0f56-4de0-a195-56d43791fce8';
 
 /** The transaction to search for. A wager on the test account, visible in its history. */
 const SEARCH_TXN_ID = '992381343';
-/** What the search box shows when empty — the app's own placeholder, and how we assert it cleared. */
-const SEARCH_PLACEHOLDER = 'Transaction ID';
+/**
+ * What an emptied search box reports as its text: nothing at all.
+ *
+ * The box visibly shows a "Transaction ID" placeholder when empty, and asserting that placeholder
+ * was the obvious-looking way to prove the clear took effect — but it can never work. The
+ * placeholder is an HTML `placeholder` attribute: the WebView paints it on screen, and exposes it
+ * to the accessibility tree as the node's *hint*, not as its text. `getText()` on a cleared input
+ * therefore returns "" while the placeholder is plainly visible in the screenshot. Verified live —
+ * the assertion failed with `Expected text "Transaction ID" but found ""` on a run where the field
+ * was demonstrably empty and the placeholder demonstrably rendered.
+ *
+ * Asserting "" is the real check: it proves the field no longer holds the searched id. The
+ * framework has no assertion that reads an element's hint, so the placeholder itself is unprovable
+ * through this interface.
+ */
+const SEARCH_EMPTY_TEXT = '';
 
 /**
  * Credentials are emitted as placeholders, resolved at execution time against the test account
@@ -158,8 +172,9 @@ const CASES = [
       'Two honest limits on the assertions, both compensated for by the screenshots. (1) The search box reports an ' +
       'empty accessibility text while it holds typed digits (verified live), so the typed value itself cannot be ' +
       'asserted — the search is instead evidenced by the searched transaction being present after submitting, plus a ' +
-      'screenshot showing the list narrowed to that single row. The clear IS hard-asserted, because an empty box ' +
-      'reports the "' + SEARCH_PLACEHOLDER + '" placeholder. (2) Nothing in the accessibility tree marks which filter ' +
+      'screenshot showing the list narrowed to that single row. The clear IS hard-asserted, by checking the box then ' +
+      'reports no text at all — not by its visible "Transaction ID" placeholder, which the WebView exposes only as a ' +
+      'hint and never as text. (2) Nothing in the accessibility tree marks which filter ' +
       'tab is active — the tab nodes are byte-identical between Deposits and Withdrawals — so each tab asserts its ' +
       'resulting list instead, and the screenshot shows which tab is highlighted. Note the Deposits and Withdrawals ' +
       'assertions encode that this test account has no deposit or withdrawal history; they will need revisiting if it ' +
@@ -200,7 +215,7 @@ const CASES = [
       // --- clear the search ---
       b.push({ action: 'clear', targetLocator: SEARCH_BOX, expectedResult: 'The search box is emptied.' });
       b.push({ action: 'wait', durationMs: 1500, expectedResult: 'The field settles.' });
-      b.push({ action: 'verify_text', targetLocator: SEARCH_BOX, value: SEARCH_PLACEHOLDER, expectedResult: `The search box is empty again — an empty box reports its "${SEARCH_PLACEHOLDER}" placeholder as its text, so this is a real check that the clear took effect and not merely that the step ran.` });
+      b.push({ action: 'verify_text', targetLocator: SEARCH_BOX, value: SEARCH_EMPTY_TEXT, expectedResult: `The search box reports no text, proving it no longer holds ${SEARCH_TXN_ID} — a real check that the clear took effect and not merely that the step ran. Asserted as empty rather than against the visible "Transaction ID" placeholder, which the WebView exposes as the node's hint and never as its text (see SEARCH_EMPTY_TEXT).` });
       // Clearing the box does not re-run the query, so the list stays filtered until it is
       // re-submitted; do that so the cleared state is genuinely unfiltered.
       b.push({ action: 'click', targetLocator: SEARCH_BOX, expectedResult: 'The now-empty search box regains focus for the IME action.' });

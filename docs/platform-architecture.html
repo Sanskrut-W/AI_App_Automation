@@ -1165,6 +1165,28 @@ const WEB_ID = (id) =&gt; ({
         recognized close tap was enough.
       </p>
 
+      <h3>Trap 11 — a placeholder is a hint, not text</h3>
+
+      <p>
+        An emptied WebView input reports <code>text=""</code> even while its placeholder is plainly
+        rendered on screen. The placeholder is an HTML <code>placeholder</code> attribute: the
+        WebView paints it, and exposes it to the accessibility tree as the node's <em>hint</em>. So
+        an assertion that reads <code>getText()</code> can never see it.
+      </p>
+
+      <div class="note">
+        <span class="note-label">How this one surfaced</span>
+        <p>
+          The transaction-history test asserted the search box showed its "Transaction ID"
+          placeholder as proof that clearing it had worked. It failed with
+          <code>Expected text "Transaction ID" but found ""</code> on a run where the failure
+          screenshot shows the field empty and the placeholder clearly visible — the assertion was
+          wrong, not the app. It now asserts the field reports no text, which is what actually
+          proves the searched id is gone. The framework has no assertion that reads an element's
+          hint, so the placeholder itself is unprovable through this interface.
+        </p>
+      </div>
+
       <h3>The coordinate escape hatch</h3>
 
       <p>
@@ -1228,9 +1250,12 @@ const WEB_ID = (id) =&gt; ({
   --run &lt;deviceB-serial&gt;=&lt;my-bets-id&gt;,&lt;transaction-history-id&gt;</code></pre>
 
       <p>
-        Measured on the most recent two-device run: <strong>547&nbsp;s wall clock against roughly
-        725&nbsp;s sequential.</strong> The speedup is bounded by the slowest single device, not by
-        total work — the hamburger tour alone accounts for the full 547&nbsp;s.
+        Measured on a three-device run — a Galaxy S21 Ultra, an S22 Ultra and an A05s, on three
+        accounts, running three different suites: <strong>521&nbsp;s wall clock against roughly
+        745&nbsp;s sequential.</strong> The speedup is bounded by the slowest single device, not by
+        total work — the 331-step hamburger tour accounts for the full 521&nbsp;s on its own, while
+        the other two devices finished in 127&nbsp;s and 97&nbsp;s and then sat idle. Adding devices
+        past that point buys nothing unless the long suite is split.
       </p>
     </section>
 
@@ -1299,27 +1324,34 @@ const WEB_ID = (id) =&gt; ({
         <div class="status-cell">
           <div class="k">Hamburger tour</div>
           <div class="v pass">331 / 331</div>
-          <div class="sub">Two consecutive full passes, 19 checkpoints.</div>
+          <div class="sub">Three consecutive full passes, 19 checkpoints, two accounts.</div>
         </div>
         <div class="status-cell">
           <div class="k">My Bets</div>
           <div class="v pass">Passing</div>
-          <div class="sub">39 steps, both accounts.</div>
+          <div class="sub">39 steps, three accounts and three devices.</div>
         </div>
         <div class="status-cell">
           <div class="k">Transaction History</div>
-          <div class="v">Account-bound</div>
-          <div class="sub">71 steps. Passes on account 1 only.</div>
+          <div class="v pass">71 / 71</div>
+          <div class="sub">First full pass. Runs only on the account owning its fixtures.</div>
         </div>
       </div>
 
       <h4>Open items</h4>
       <ul>
-        <li><strong>Transaction History is coupled to one account's data.</strong> It searches a
-        hardcoded transaction id that exists only on account 1, so it fails on the second device with
-        "No transactions were found" — the search mechanism works, the fixture does not. Fix is
-        either a per-account id resolved through the same templating that handles credentials, or a
-        negative-search assertion that proves the filter runs on any account.</li>
+        <li><strong>Transaction History is coupled to one account's data</strong> in three places,
+        all baked to the account that owns the searched transaction: the id search (step 46), and the
+        Deposits and Withdrawals tabs, which assert "No transactions were found" (steps 65 and 70)
+        and would fail on any funded account. The mechanisms work; the fixtures do not travel. Fix is
+        either per-account fixture values resolved through the same templating that handles
+        credentials, or assertions that hold for any account.</li>
+        <li><strong>The logout teardown had the unscoped-selector bug</strong> — now fixed. Its
+        drawer scroll used <code>scrollIntoView(text("Log Out"))</code>, which matches any node with
+        that text and stops without scrolling, so teardown silently failed and left a real-money
+        account signed in after a failed test case. Worth noting as a pattern: the fix had been
+        applied to the generators but not to the teardown steps, which live in the account config
+        rather than in code and so were missed.</li>
         <li><strong>Three older auto-generated test cases still embed literal credentials</strong>
         (<code>39fcb671</code>, <code>6809c350</code>, <code>7a3f70d0</code>) and always run as the
         default account. Regenerating them would bring them onto the placeholder mechanism.</li>
