@@ -17,6 +17,12 @@
  *   node tools/run-parallel.js --package com.betwayafrica.za --module manual \
  *     --run <serial>=<testCaseId>[,<testCaseId>...] --run <serial>=<testCaseId> [--keep-appium]
  *
+ * Each --run may name its own package, so different devices can drive different regional builds in
+ * one invocation:
+ *   node tools/run-parallel.js --module manual \
+ *     --run SERIAL_A@com.betwayafrica.za=<testCaseId> \
+ *     --run SERIAL_B@com.betwayafrica.gh=<testCaseId>
+ *
  * Each --run pairs a device with the test case it should execute. Add more --run flags for more
  * devices. Devices are verified present via adb, and each one's account assignment is checked
  * before anything launches, so a misconfigured run fails in seconds rather than mid-suite.
@@ -49,12 +55,22 @@ function parseArgs(argv) {
         args.module = next();
         break;
       case '--run': {
-        const [serial, ids] = next().split('=');
+        // <serial>[@<package>]=<id>[,<id>...]
+        //
+        // The optional @package lets each device run a DIFFERENT regional build in the same
+        // invocation — e.g. the ZA app on one phone and the GH app on another, side by side. Betway
+        // ships one codebase per region under its own package, and a test case's locators are all
+        // package-prefixed, so "which app" is a per-device property, not a property of the run.
+        // Omit it and the run falls back to the global --package.
+        const [target, ids] = next().split('=');
+        const [serial, packageName] = target.split('@');
         const testCaseIds = (ids ?? '').split(',').map((id) => id.trim()).filter(Boolean);
         if (!serial || testCaseIds.length === 0) {
-          throw new Error('--run must look like <deviceSerial>=<testCaseId>[,<testCaseId>...]');
+          throw new Error(
+            '--run must look like <deviceSerial>[@<package>]=<testCaseId>[,<testCaseId>...]',
+          );
         }
-        args.runs.push({ serial, testCaseIds });
+        args.runs.push({ serial, testCaseIds, packageName: packageName || undefined });
         break;
       }
       case '--keep-appium':
@@ -64,7 +80,11 @@ function parseArgs(argv) {
         throw new Error(`Unknown argument: ${arg}`);
     }
   }
-  if (!args.packageName) throw new Error('--package is required');
+  // --package is the default for runs that do not name their own; only required when some run
+  // relies on it.
+  if (!args.packageName && args.runs.some((r) => !r.packageName)) {
+    throw new Error('--package is required unless every --run names its own package (<serial>@<package>=...)');
+  }
   if (!args.module) throw new Error('--module is required');
   if (args.runs.length === 0) throw new Error('at least one --run is required');
   return args;
@@ -86,15 +106,16 @@ function attachedDevices() {
  * an account is the failure that looks like a flaky test but isn't: they overwrite each other's
  * session and read each other's balance.
  */
-function verifyAccounts(packageName, runs) {
+function verifyAccounts(runs) {
   const configPath = path.join(REPO_ROOT, 'config', 'test-accounts.json');
   if (!fs.existsSync(configPath)) {
     throw new Error(`Missing ${configPath} — copy config/test-accounts.example.json and fill it in.`);
   }
-  const entry = JSON.parse(fs.readFileSync(configPath, 'utf8'))[packageName];
-  if (!entry) throw new Error(`config/test-accounts.json has no entry for ${packageName}`);
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-  const assignments = runs.map(({ serial }) => {
+  const assignments = runs.map(({ serial, packageName }) => {
+    const entry = config[packageName];
+    if (!entry) throw new Error(`config/test-accounts.json has no entry for ${packageName}`);
     const accountId = entry.deviceAccounts?.[serial];
     if (!accountId) {
       throw new Error(
@@ -103,14 +124,18 @@ function verifyAccounts(packageName, runs) {
       );
     }
     if (!entry.accounts?.[accountId]) {
-      throw new Error(`Account "${accountId}" (mapped to ${serial}) is not defined under accounts.`);
+      throw new Error(
+        `Account "${accountId}" (mapped to ${serial}) is not defined under ${packageName}.accounts.`,
+      );
     }
-    return { serial, accountId };
+    return { serial, accountId, packageName };
   });
 
-  const duplicates = assignments
-    .map((a) => a.accountId)
-    .filter((id, index, all) => all.indexOf(id) !== index);
+  // Scoped per package: "gh-primary" under com.betwayafrica.gh and an identically named account
+  // under another package are different accounts entirely, and two devices driving different
+  // regional builds cannot log each other out.
+  const keys = assignments.map((a) => `${a.packageName}::${a.accountId}`);
+  const duplicates = keys.filter((k, index) => keys.indexOf(k) !== index);
   if (duplicates.length > 0) {
     throw new Error(
       `Devices share the account(s) ${[...new Set(duplicates)].join(', ')}. ` +
@@ -163,12 +188,28 @@ async function ensureAppium(port) {
   throw new Error(`appium :${port} did not become ready within ${APPIUM_START_TIMEOUT_MS}ms`);
 }
 
-/** Returns the app to a logged-out state on one device, so a run starts from a known state. */
-function resetDevice(serial) {
+/**
+ * Returns the app to a logged-out state on one device, so a run starts from a known state.
+ *
+ * The force-stop first is load-bearing, not tidiness. The navigation drawer is an ExpandableListView
+ * whose expanded section is VIEW state: it survives logging out and back in, and nothing in the
+ * accessibility tree reports which section is open, so no test step can detect or correct it. A test
+ * that expands a section therefore leaves the drawer in a state where the next run's assumptions are
+ * wrong — the hamburger tour needs "My Account" expanded and "Quick Links" collapsed, which is the
+ * default only on a cold start. Verified live: after a probe left Quick Links expanded and My Account
+ * collapsed, a force-stop restored the default. Killing the process is the one reliable reset.
+ */
+function resetDevice(serial, packageName) {
+  const stop = spawnSync('adb', ['-s', serial, 'shell', 'am', 'force-stop', packageName], {
+    encoding: 'utf8',
+  });
+  if (stop.status !== 0) {
+    console.log(`  [${serial}] warning: force-stop failed (${(stop.stderr || '').trim()})`);
+  }
   return new Promise((resolve) => {
     const child = spawn(
       process.execPath,
-      [path.join(REPO_ROOT, 'tools', 'generators', 'reset-logged-out.js'), serial],
+      [path.join(REPO_ROOT, 'tools', 'generators', 'reset-logged-out.js'), serial, '--package', packageName],
       { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     let output = '';
@@ -262,14 +303,16 @@ async function main() {
   }
   console.log(`  devices: ${args.runs.map((r) => r.serial).join(', ')}`);
 
-  const assignments = verifyAccounts(args.packageName, args.runs);
-  for (const { serial, accountId } of assignments) {
-    console.log(`  ${serial} -> account "${accountId}"`);
+  // Resolve each run's package before anything else looks at it.
+  args.runs = args.runs.map((r) => ({ ...r, packageName: r.packageName || args.packageName }));
+
+  const assignments = verifyAccounts(args.runs);
+  for (const { serial, accountId, packageName } of assignments) {
+    console.log(`  ${serial} -> ${packageName}, account "${accountId}"`);
   }
 
   const workers = args.runs.map((run, index) => ({
     ...run,
-    packageName: args.packageName,
     module: args.module,
     appiumPort: BASE_APPIUM_PORT + index,
     systemPort: BASE_SYSTEM_PORT + index,
@@ -286,13 +329,13 @@ async function main() {
     // port (8200) and collide. Each reset only takes a few seconds, so serialising costs little.
     console.log('\nResetting devices to a logged-out state');
     for (const worker of workers) {
-      await resetDevice(worker.serial);
+      await resetDevice(worker.serial, worker.packageName);
     }
 
     console.log('\nRunning');
     for (const w of workers) {
       console.log(
-        `  [${w.serial}] ${w.testCaseIds.join(' then ')}  (appium :${w.appiumPort}, systemPort ${w.systemPort})`,
+        `  [${w.serial}] ${w.packageName}  ${w.testCaseIds.join(' then ')}  (appium :${w.appiumPort}, systemPort ${w.systemPort})`,
       );
     }
     const started = Date.now();

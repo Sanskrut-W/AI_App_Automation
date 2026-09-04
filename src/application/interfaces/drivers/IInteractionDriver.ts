@@ -17,6 +17,12 @@ export interface IInteractionDriver {
    * the IME action is used rather than on each keystroke — a WebView search box, typically.
    */
   pressImeAction(action: string): Promise<void>;
+  /**
+   * Brings the given package to the foreground, resuming it rather than restarting it (so a signed-in
+   * session survives). Needed to recover after a menu row deep-links out to another app — the app
+   * under test no longer has a close control on screen, so tapping one cannot bring it back.
+   */
+  activateApp(appId: string): Promise<void>;
   scroll(direction: ScrollDirection): Promise<void>;
   /** Raw two-point drag gesture (no widget/locator involved) — for scrollable content the
    * generic scroll() can't reliably reach, e.g. a nested list inside a drawer/popup. */

@@ -14,14 +14,19 @@
  *
  * Usage: node reset-logged-out.js <deviceSerial>
  */
-const { remote } = require('c:\\Users\\SW115406\\Desktop\\AI_App_Automation\\node_modules\\webdriverio');
+const path = require('path');
+const { remote } = require(path.resolve(__dirname, '..', '..', 'node_modules', 'webdriverio'));
 
 const DEVICE = process.argv[2];
 if (!DEVICE) throw new Error('usage: node reset-logged-out.js <deviceSerial>');
 
-const PKG = 'com.betwayafrica.za';
+// Which regional build to reset. Betway ships one codebase per region under its own package
+// (com.betwayafrica.za, .gh, .ng, com.betway.bw, ...) and every resource-id is package-prefixed,
+// so this cannot be a constant. run-parallel.js passes the --package it was given.
+const pkgFlag = process.argv.indexOf('--package');
+const PKG = pkgFlag > -1 ? process.argv[pkgFlag + 1] : 'com.betwayafrica.za';
 const SCROLL_INTO_VIEW = (text) =>
-  `new UiScrollable(new UiSelector().resourceId("${PKG}:id/leftNavigationItems")).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("${text}"))`;
+  `new UiScrollable(new UiSelector().resourceId("${PKG}:id/leftNavigationItems")).scrollIntoView(new UiSelector().resourceId("${PKG}:id/navTitle").text("${text}"))`;
 /** A drawer row, matched on its own navTitle id — drawer labels are duplicated elsewhere on
  *  screen, and only navTitle is unique to the drawer. */
 const NAV_ROW = (label) =>

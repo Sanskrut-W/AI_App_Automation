@@ -12,6 +12,7 @@ import { NavigationError } from '../../core/errors/NavigationError';
 import { SendKeysError } from '../../core/errors/SendKeysError';
 import { ClearTextError } from '../../core/errors/ClearTextError';
 import { ImeActionError } from '../../core/errors/ImeActionError';
+import { ActivateAppError } from '../../core/errors/ActivateAppError';
 import { ScrollError } from '../../core/errors/ScrollError';
 import { SwipeError } from '../../core/errors/SwipeError';
 import { GetTextError } from '../../core/errors/GetTextError';
@@ -270,6 +271,19 @@ export class AndroidAppiumDriver implements IAppiumDriver, ICaptureDriver, IInte
       this.logger.info('Pressed IME action', { action });
     } catch (error) {
       throw new ImeActionError(`Failed to press IME action "${action}": ${this.describe(error)}`);
+    }
+  }
+
+  async activateApp(appId: string): Promise<void> {
+    const handle = this.requireActiveSession();
+    this.logger.info('Activating app', { appId });
+    try {
+      // activateApp resumes an already-running app; it deliberately does not restart it, so a
+      // signed-in session survives the round trip out to whatever app a deep link opened.
+      await handle.activateApp(appId);
+      this.logger.info('App activated', { appId });
+    } catch (error) {
+      throw new ActivateAppError(`Failed to activate app "${appId}": ${this.describe(error)}`);
     }
   }
 

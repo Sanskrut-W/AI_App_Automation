@@ -8,11 +8,10 @@ coverage/
 # config/test-accounts.json and fill in your own — never commit the filled-in file.
 config/test-accounts.json
 
-# Runtime-generated artifacts (populated once later modules run)
-artifacts/**/*.json
-artifacts/**/*.png
-artifacts/**/*.xml
-artifacts/**/*.html
+# Runtime-generated artifacts. The whole tree is output, so it is ignored wholesale rather than by
+# extension: the previous per-extension list silently stopped covering things as new kinds of output
+# appeared, and the probes' *.tree.txt dumps were about to be committed because of it.
+artifacts/
 logs/*.log
 
 # Note: generated test cases under artifacts/apps/*/test-cases/ stay ignored deliberately. They

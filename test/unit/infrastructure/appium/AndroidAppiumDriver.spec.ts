@@ -17,6 +17,7 @@ import { NavigationError } from '../../../../src/core/errors/NavigationError';
 import { SendKeysError } from '../../../../src/core/errors/SendKeysError';
 import { ClearTextError } from '../../../../src/core/errors/ClearTextError';
 import { ImeActionError } from '../../../../src/core/errors/ImeActionError';
+import { ActivateAppError } from '../../../../src/core/errors/ActivateAppError';
 import { ScrollError } from '../../../../src/core/errors/ScrollError';
 import { SwipeError } from '../../../../src/core/errors/SwipeError';
 import { GetTextError } from '../../../../src/core/errors/GetTextError';
@@ -721,6 +722,38 @@ describe('AndroidAppiumDriver', () => {
       await driver.createSession({ deviceId: 'emulator-5554' });
 
       await expect(driver.pressImeAction('search')).rejects.toBeInstanceOf(ImeActionError);
+    });
+  });
+
+  describe('activateApp', () => {
+    it('throws SessionNotActiveError when no session exists', async () => {
+      const { driver } = createDriver();
+
+      await expect(driver.activateApp('com.example.app')).rejects.toBeInstanceOf(
+        SessionNotActiveError,
+      );
+    });
+
+    it('resumes the app rather than restarting it, so a signed-in session survives', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await driver.activateApp('com.example.app');
+
+      expect(handle.activateApp).toHaveBeenCalledWith('com.example.app');
+      expect(handle.terminateApp).not.toHaveBeenCalled();
+    });
+
+    it('throws ActivateAppError when activation fails', async () => {
+      const { driver, sessionFactory } = createDriver();
+      const handle = createMockHandle('abc-123');
+      handle.activateApp.mockRejectedValue(new Error('no such package'));
+      sessionFactory.createRemote.mockResolvedValue(handle);
+      await driver.createSession({ deviceId: 'emulator-5554' });
+
+      await expect(driver.activateApp('com.example.app')).rejects.toBeInstanceOf(ActivateAppError);
     });
   });
 

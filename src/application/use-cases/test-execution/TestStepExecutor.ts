@@ -324,6 +324,11 @@ export class TestStepExecutor implements ITestStepExecutor {
       case ActionType.BACK:
         await this.interactionDriver.back();
         return 'Navigated back.';
+      case ActionType.ACTIVATE_APP: {
+        const appId = this.requireValue(step);
+        await this.interactionDriver.activateApp(appId);
+        return `Brought "${appId}" back to the foreground.`;
+      }
       case ActionType.WAIT: {
         const durationMs = step.durationMs ?? 0;
         await this.sleepFn(durationMs);

@@ -29,6 +29,36 @@ function push(step) {
 const HAMBURGER = { strategy: 'accessibility-id', value: 'Open' };
 const DRAWER_LIST = { strategy: 'resource-id', value: 'com.betwayafrica.za:id/leftNavigationItems' };
 
+const PKG = 'com.betwayafrica.za';
+const NAV_TITLE = `${PKG}:id/navTitle`;
+const NAV_ROW = `${PKG}:id/navContainerRow`;
+
+/**
+ * The drawer is an ExpandableListView with two collapsible sections — "My Account" and
+ * "Quick Links" (plus a "Customer Hub" header whose contents are not covered here). Every row,
+ * header or child, carries the SAME resource-id "navTitle", so text alone cannot tell a section
+ * header apart from an item inside it.
+ *
+ * The structural difference, verified against a live hierarchy dump, is the wrapper: a child row is
+ * nested inside a "navContainerRow" (and carries a navIcon), while a section header is not. So
+ * ancestor presence is the discriminator, and these two locators are exact opposites — checked live:
+ * HEADER matches "My Account" and not "Withdraw Funds"; CHILD matches "Withdraw Funds" and not
+ * "My Account".
+ */
+const SECTION_HEADER = (label) => ({
+  strategy: 'xpath-text',
+  value: `//android.widget.TextView[@resource-id="${NAV_TITLE}" and @text="${label}" and not(ancestor::*[@resource-id="${NAV_ROW}"])]`,
+});
+const SECTION_CHILD = (label) => ({
+  strategy: 'xpath-text',
+  value: `//*[@resource-id="${NAV_ROW}"]//android.widget.TextView[@resource-id="${NAV_TITLE}" and @text="${label}"]`,
+});
+const SCROLL_TO = (label) => ({
+  strategy: 'android-uiautomator',
+  value: `new UiScrollable(new UiSelector().resourceId("${PKG}:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId("${NAV_TITLE}").text("${label}"))`,
+});
+const MODAL_CLOSE = { strategy: 'xpath-text', value: '//*[@resource-id="modal-close-btn"]' };
+
 /**
  * Opens the drawer, tolerating a tap that doesn't take.
  *
@@ -49,6 +79,31 @@ function pushOpenDrawer() {
   push({ action: 'click', targetLocator: HAMBURGER, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'Retries the hamburger only if the drawer did not open — once it is open the button reads "Close", so this locator no longer matches and the step is a no-op.', optional: true });
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'Any retried open animation finishes.' });
   push({ action: 'verify_element_exists', targetLocator: DRAWER_LIST, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer list is present, so the menu really is open before anything looks for a row in it.' });
+}
+
+/**
+ * Peels the layers off a screen with the app's own X control — never the system Back button.
+ *
+ * A screen's page-header X carries the same "modal-close-btn" resource-id as a popup's own X, so
+ * repeating the tap closes them in order: a popup first if one is up, then the screen beneath.
+ * Each tap is optional so a screen with fewer layers simply skips the rest, and each is followed by
+ * a real settle because the layers dismiss one at a time and the one beneath needs time to become
+ * tappable.
+ */
+function pushCloseLayers(label) {
+  // Timings are deliberately generous. A screen's own X control is WebView-rendered and does not
+  // exist in the hierarchy until the page has laid out — and how long that takes depends on host
+  // load, not just the device. Proven live: with two devices driving one host concurrently, the
+  // Change Password screen had still not rendered its X when all three taps below had fired (they
+  // landed at roughly 3.7s, 4.7s and 5.7s after the screen opened), so the screen never closed and
+  // the tour then asserted a hamburger that was also still mid-render. A probe found the same
+  // control present at 5s on the same build, which is what rules out an app regression.
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2500, expectedResult: `Any popup the ${label} screen raises has time to render before it is closed.` });
+  for (let i = 0; i < 3; i += 1) {
+    push({ action: 'click', targetLocator: MODAL_CLOSE, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Attempt ${i + 1} of 3: closes the topmost remaining layer — a popup if one is up, otherwise the ${label} screen itself; a no-op once everything is closed.`, optional: true });
+    push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'The closed layer disappears and any layer beneath it becomes tappable.' });
+  }
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 800, expectedResult: 'The screen underneath settles before the menu is reopened.' });
 }
 
 // Screenshots are captured ONLY for steps carrying a `screenshotLabel` (plus any step that fails,
@@ -199,7 +254,7 @@ for (const { label } of ITEMS) {
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1200, expectedResult: `Any popup the ${label} screen raises has time to render before it is closed.` });
   for (let i = 0; i < 3; i += 1) {
     push({ action: 'click', targetLocator: { strategy: 'xpath-text', value: '//*[@resource-id="modal-close-btn"]' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Attempt ${i + 1} of 3: closes the topmost remaining layer — a popup if one is up, otherwise the ${label} screen itself; a no-op once everything is closed.`, optional: true });
-    push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1000, expectedResult: 'The closed layer disappears and any layer beneath it becomes tappable.' });
+    push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'The closed layer disappears and any layer beneath it becomes tappable.' });
   }
 
   push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 800, expectedResult: 'The screen underneath settles before the menu is reopened.' });
@@ -211,8 +266,112 @@ push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id'
 push({ action: 'click', targetLocator: { strategy: 'resource-id', value: 'com.betwayafrica.za:id/liveChat' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'Tapping Live Chat responds (closes the menu); live chat itself may require support infrastructure not present in this test environment.' });
 push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2500, expectedResult: "Live Chat finishes responding (this step's screenshot is the visual proof).", screenshotLabel: 'Checking Live Chat' });
 
+// --- Quick Links: a collapsed section, expanded once and then toured ---
+//
+// Why the header is tapped exactly once for the whole section, and never per item:
+//
+//   * Nothing in the accessibility tree records whether a section is expanded. Verified directly —
+//     the "Quick Links" header node is byte-identical in both states (same id, text, bounds,
+//     clickable/selected/checked flags; no chevron sibling). So no step can test the state, and the
+//     trick the hamburger uses (content-desc flipping Open -> Close, which makes an optional retry a
+//     no-op) has no equivalent here.
+//   * Tapping a header always TOGGLES. Tapping one that is already expanded collapses it, and every
+//     later item in the section then fails to resolve.
+//
+// What makes a single tap deterministic is the starting state. Measured on a cold app start (which
+// every run of this test case has: the runner resets the device to logged-out and the case logs in
+// fresh), the drawer opens with "My Account" EXPANDED — which is why the section above needs no
+// expanding — and "Quick Links" COLLAPSED. And once expanded it STAYS expanded across opening a
+// child screen, closing it, and reopening the drawer (also measured). Hence: expand once, tour all.
+//
+// The expansion is then PROVEN rather than assumed: the step after the tap hard-asserts that a
+// child row is present, so a wrong-direction tap fails here, loudly, instead of surfacing as nine
+// confusing "row not found" failures further down.
+pushOpenDrawer();
+push({ action: 'verify_element_exists', targetLocator: SCROLL_TO('Quick Links'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until the Quick Links section header is rendered, if it was not already visible.', optional: true });
+push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
+push({ action: 'verify_element_exists', targetLocator: SECTION_HEADER('Quick Links'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The Quick Links section header is present. Matched as a header specifically — a navTitle with no navContainerRow ancestor — so this can never accidentally match a child row of the same name.' });
+push({ action: 'click', targetLocator: SECTION_HEADER('Quick Links'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The Quick Links section expands, revealing its nine rows.' });
+push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'The expand animation finishes.' });
+
+// Split into three checks so a failure here says WHICH thing went wrong, rather than leaving three
+// candidate causes behind one red step. The first run of this section failed on the Promos assertion
+// alone, and the failure screenshot was no help: the executor's recovery ladder taps a close control
+// before capturing it, so the image showed a closed drawer that the recovery itself had produced.
+//
+// 1. Is the drawer even still open? (a tap that missed the header would have closed it)
+push({ action: 'verify_element_exists', targetLocator: DRAWER_LIST, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer is still open after the section header tap — so the tap landed on the header rather than dismissing the drawer.' });
+// 2. Bring the first row into the viewport. Tapping the header triggers an accordion relayout —
+//    My Account's fifteen rows collapse and Quick Links' nine expand — which moves the scroll
+//    position, and the list is virtualized, so a row outside the viewport is absent from the
+//    hierarchy entirely rather than merely off-screen.
+push({ action: 'verify_element_exists', targetLocator: SCROLL_TO('Promos'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until the first Quick Links row is rendered, if the relayout left it outside the viewport.', optional: true });
+push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 600, expectedResult: 'The scroll settles.' });
+// 3. Now the real proof that the section expanded rather than collapsed.
+push({ action: 'verify_element_exists', targetLocator: SECTION_CHILD('Promos'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'Promos — the first Quick Links row — is present, proving the tap expanded the section rather than collapsing it.', screenshotLabel: 'Quick Links expanded' });
+
+/**
+ * The nine Quick Links rows, in the order the drawer lists them (established by expanding the
+ * section in isolation and enumerating it — see tools/generators/probe-drawer-groups.js).
+ *
+ * `open: false` means the row is asserted present but deliberately NOT tapped:
+ *
+ *   - Unsubscribe: on a real account the tap may immediately unsubscribe from communications rather
+ *     than opening a confirmable page, and that is not a change a test should make. Presence and
+ *     clickability are checked instead.
+ *   - Live Chat: the drawer ALSO has a separate footer control with resource-id "liveChat" (a
+ *     different element from this row — verified live, it sits below the list at y>1825), and the
+ *     tour already opens that one. Tapping this row too would start a second support-chat session
+ *     for no extra coverage.
+ *
+ * Betway Scores App was expected to deep-link out to the Play Store and to need a relaunch to get
+ * back. It does not: verified from its screenshot, the row opens an ordinary in-app WebView page
+ * (Betway toolbar and bottom nav still present) advertising the Scores app, with Play Store /
+ * AppGallery / App Store BUTTONS on it. The tour taps the row, never those buttons, so it never
+ * leaves the app and needs no special recovery. Noted because the opposite was assumed at first.
+ */
+const QUICK_LINKS = [
+  { label: 'Promos', open: true },
+  { label: 'Unsubscribe', open: false, why: 'tapping it may unsubscribe the real account outright' },
+  { label: 'Betting Rules', open: true },
+  { label: 'Contact Us', open: true },
+  { label: 'Live Chat', open: false, why: 'the drawer\'s separate liveChat footer control is already opened by this tour' },
+  { label: 'Document Upload', open: true },
+  { label: 'Terms and Conditions', open: true },
+  { label: 'How To', open: true },
+  { label: 'Betway Scores App', open: true },
+];
+
+QUICK_LINKS.forEach((item, index) => {
+  const { label, open, why } = item;
+  const isLast = index === QUICK_LINKS.length - 1;
+  const child = SECTION_CHILD(label);
+
+  push({ action: 'verify_element_exists', targetLocator: SCROLL_TO(label), elementId: null, value: null, direction: null, durationMs: null, expectedResult: `The drawer scrolls until the ${label} row is rendered, if it was not already visible.`, optional: true });
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
+
+  if (!open) {
+    // Nothing was opened, so the drawer is still up and the next item can start straight away.
+    push({ action: 'verify_element_exists', targetLocator: child, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `The ${label} option is present in the Quick Links section. Deliberately not tapped: ${why}.`, screenshotLabel: `Checking ${label} (present, not opened)` });
+    return;
+  }
+
+  push({ action: 'verify_element_exists', targetLocator: child, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `The ${label} option is visible in the Quick Links section.` });
+  push({ action: 'click', targetLocator: child, elementId: null, value: null, direction: null, durationMs: null, expectedResult: `Tapping ${label} opens it.` });
+  push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 2500, expectedResult: `${label} finishes loading (this step's screenshot is the visual proof it opened).`, screenshotLabel: `Checking ${label}` });
+
+  pushCloseLayers(label);
+  // Reopen the drawer for the NEXT item only. pushOpenDrawer opens with a hard assertion on the
+  // hamburger content-desc "Open", which is absent while the drawer is already open — so calling it
+  // after the last item would collide with the Log Out block below, which opens the drawer itself.
+  if (!isLast) {
+    pushOpenDrawer();
+  }
+
+});
+
 // --- Log Out: the last drawer item, toured last on purpose ---
-// In the drawer itself Log Out sits above the Customer Hub section that holds Live Chat, but it has
+// In the drawer Log Out is the last of My Account's own rows, but it has
 // to be visited last here because tapping it ends the session every later step depends on. Doing
 // the logout through the app's own menu also means the session is closed the way a user closes it,
 // rather than by wiping app state from outside â€” and it gets the item covered by the tour at the
@@ -220,7 +379,24 @@ push({ action: 'wait', targetLocator: null, elementId: null, value: null, direct
 // which is safe: its first check is "is toolbarDeposit still present?" and a failure there is
 // logged and swallowed rather than counted against this test case.
 pushOpenDrawer();
-push({ action: 'verify_element_exists', targetLocator: { strategy: 'android-uiautomator', value: 'new UiScrollable(new UiSelector().resourceId("com.betwayafrica.za:id/leftNavigationItems")).setMaxSearchSwipes(12).scrollIntoView(new UiSelector().resourceId("com.betwayafrica.za:id/navTitle").text("Log Out"))' }, elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until Log Out is rendered.', optional: true });
+
+// Re-expand My Account first — the drawer is an ACCORDION, verified live: expanding Quick Links
+// COLLAPSED My Account, and Log Out is one of My Account's children. Without this the Log Out row
+// simply does not exist in the hierarchy and the tour dies on its final assertion. (This is also
+// why the My Account section above needs no expanding of its own: it is the section that starts
+// expanded, and nothing had collapsed it yet.)
+//
+// One tap is deterministic here for the same reason it was for Quick Links, just inverted: the
+// accordion guarantees My Account is collapsed at this point, because Quick Links is expanded and
+// stayed that way through the section above. The hard assertion on the Log Out row two steps later
+// proves the tap went the right way.
+push({ action: 'verify_element_exists', targetLocator: SCROLL_TO('My Account'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until the My Account section header is rendered, if it was not already visible.', optional: true });
+push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
+push({ action: 'verify_element_exists', targetLocator: SECTION_HEADER('My Account'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The My Account section header is present.' });
+push({ action: 'click', targetLocator: SECTION_HEADER('My Account'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The My Account section expands again, bringing back the rows the Quick Links accordion collapsed.' });
+push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 1500, expectedResult: 'The expand animation finishes.' });
+
+push({ action: 'verify_element_exists', targetLocator: SCROLL_TO('Log Out'), elementId: null, value: null, direction: null, durationMs: null, expectedResult: 'The drawer scrolls until Log Out is rendered.', optional: true });
 push({ action: 'wait', targetLocator: null, elementId: null, value: null, direction: null, durationMs: 500, expectedResult: 'The scroll settles.' });
 
 const logOutLocator = { strategy: 'xpath-text', value: '//android.widget.TextView[@resource-id="com.betwayafrica.za:id/navTitle" and @text="Log Out"]' };
@@ -232,8 +408,8 @@ push({ action: 'verify_element_exists', targetLocator: { strategy: 'resource-id'
 const testCase = {
   testCaseId: '105c7000-c5d5-41a9-a7ba-5c5d1dc08cf6',
   screenId: 'f53e9f8c-0f56-4de0-a195-56d43791fce8',
-  title: 'Verify user is able to log in once and navigate through every option in the hamburger menu.',
-  description: 'Logs in once, then tours every real hamburger-menu drawer item (Withdraw Funds, Deposit Funds, My Bets, Bonus Summary, Transaction Summary, My Casino Big Wins, My Gifts, Bet Influencer, Promo Voucher, Update Details, Responsible Gaming, Betway Benefits, Betway Rewards, Change Password, Document Verification, Live Chat) and finishes by logging out through the drawer\'s own Log Out item, closing back (not logging out) between all the others so the session stays live throughout. Every click locator filters on clickable="true" because several drawer labels are duplicated elsewhere on screen by a non-clickable element with the same text (proven live with "My Bets"). Never types into or submits any real-money/account-modifying field (Deposit/Withdraw/Change Password/Update Details/Promo Voucher/Responsible Gaming) â€” only verifies each screen opens correctly, with a screenshot as proof.',
+  title: 'Verify user is able to log in once and navigate through every option in the hamburger menu, including the Quick Links section.',
+  description: 'Logs in once, then tours the hamburger drawer\'s two collapsible sections and finishes by logging out through the drawer\'s own Log Out row. MY ACCOUNT (expanded by default): Withdraw Funds, Deposit Funds, My Bets, Bonus Summary, Transaction Summary, My Casino Big Wins, My Gifts, Bet Influencer, Promo Voucher, Update Details, Responsible Gaming, Betway Benefits, Betway Rewards, Change Password and Document Verification are each opened, screenshotted, and closed with the app\'s own X control. QUICK LINKS (collapsed by default, expanded once for the whole section): Promos, Betting Rules, Contact Us, Document Upload, Terms and Conditions and How To are opened, screenshotted and closed the same way. Betway Scores App is opened the same way: it was expected to deep-link out to the Play Store but in fact opens an ordinary in-app page carrying store buttons, which the tour does not tap. Two rows are asserted present but deliberately NOT tapped: Unsubscribe, because on a real account the tap may unsubscribe outright rather than opening a confirmable page; and Live Chat, because the drawer\'s separate liveChat footer control is a different element that this tour already opens, and tapping both would start two support-chat sessions for no extra coverage. The drawer is an ACCORDION - verified live that expanding Quick Links collapses My Account - so My Account is re-expanded before Log Out, which is one of its children. Section headers and child rows share the resource-id navTitle and are told apart structurally: a child row sits inside a navContainerRow, a section header does not. Never types into or submits any real-money or account-modifying field (Deposit, Withdraw, Change Password, Update Details, Promo Voucher, Responsible Gaming, Document Upload) - only verifies each screen opens, with a screenshot as proof.',
   steps,
   priority: 'high',
   tags: ['manual', 'hamburger-menu', 'login'],

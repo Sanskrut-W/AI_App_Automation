@@ -71,6 +71,7 @@ function createMocks() {
     sendKeys: jest.fn().mockResolvedValue(undefined),
     clearText: jest.fn().mockResolvedValue(undefined),
     pressImeAction: jest.fn().mockResolvedValue(undefined),
+    activateApp: jest.fn().mockResolvedValue(undefined),
     scroll: jest.fn().mockResolvedValue(undefined),
     swipe: jest.fn().mockResolvedValue(undefined),
     getText: jest.fn().mockResolvedValue(''),
@@ -166,6 +167,30 @@ describe('TestStepExecutor', () => {
     await executor.execute(createStep({ action: ActionType.PRESS_IME_ACTION, value: null }));
 
     expect(mocks.interactionDriver.pressImeAction).toHaveBeenCalledWith('search');
+  });
+
+  it('executes an ACTIVATE_APP step with the step value as the package name', async () => {
+    const mocks = createMocks();
+    const executor = createExecutor(mocks);
+
+    const result = await executor.execute(
+      createStep({ action: ActionType.ACTIVATE_APP, value: 'com.example.app' }),
+    );
+
+    expect(mocks.interactionDriver.activateApp).toHaveBeenCalledWith('com.example.app');
+    expect(result.status).toBe(StepStatus.PASSED);
+  });
+
+  it('fails an ACTIVATE_APP step with no value rather than guessing a package', async () => {
+    const mocks = createMocks();
+    const executor = createExecutor(mocks);
+
+    const result = await executor.execute(
+      createStep({ action: ActionType.ACTIVATE_APP, value: null }),
+    );
+
+    expect(mocks.interactionDriver.activateApp).not.toHaveBeenCalled();
+    expect(result.status).toBe(StepStatus.FAILED);
   });
 
   describe('screenshot checkpoints', () => {
